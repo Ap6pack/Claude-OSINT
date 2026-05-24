@@ -13,9 +13,15 @@ Built by **[ElementalSoul](https://github.com/elementalsouls)** — GenAI Securi
 `claude-osint` is a modular set of skills for the [Claude skills system](https://docs.claude.com/en/docs/claude-code/skills). Each skill is a structured `SKILL.md` file that primes Claude with expert-level methodology for a specific slice of the offensive recon problem:
 
 - **`osint-methodology`** — *how to think.* Strategic + procedural. Asset-graph discipline, severity rubric, time budgeting, identity-fabric mapping, deliverable templates.
-- **`offensive-osint`** — *router.* Dispatches to the right sub-skill based on task type. Load this first; it tells Claude which focused sub-skill to reach for.
-- **`identity-fabric`** — *IdP + SSO surface.* Concrete endpoints for Entra, Okta, ADFS, SAML, M365 deep enum, GraphQL field-suggestion, LinkedIn employee enum.
-- *(additional sub-skills being added — see [Skill Index](#skill-index) for the full capability map)*
+- **`offensive-osint`** — *router.* Dispatches to the right sub-skill based on task type. Load this first.
+- **`recon-asset-discovery`** — subdomains, ASN/BGP, CT logs, WHOIS/RDAP, DNS catalog, geospatial, regional search engines.
+- **`web-surface`** — Swagger/GraphQL probe paths, curl one-liners, vendor fingerprints, CDN bypass, Wayback CDX, Postman, endpoint scoring.
+- **`identity-fabric`** — Entra, Okta, ADFS, SAML, M365 deep enum, GraphQL field-suggestion, LinkedIn employee enum.
+- **`secrets-and-dorks`** — 48-pattern secret regex catalog, 80+ dork corpus, GitHub code-search dorks, 9 read-only validators.
+- **`post-discovery`** — JWT triage, AWS IAM enum, GitHub/Slack post-credential workflows. Gated: run validators first.
+- **`cloud-and-infra`** — cloud-native fingerprints, K8s/etcd/kubelet, CI/CD exposure, TLS deep audit.
+- **`people-breach-intel`** — HudsonRock, breach data, username/email/phone, people search, social media, crypto, media.
+- **`analysis-and-reporting`** — scoring rubrics, attack-path hints, severity decision matrix, sector-specific notes.
 
 Drop the skills into your Claude environment and it behaves like a senior recon analyst: it knows the techniques, the tooling, the edge cases, and the escalation paths — and it stays in scope.
 
@@ -30,8 +36,15 @@ claude-osint/
 ├── skills/
 │   ├── osint-methodology/SKILL.md     # how to think
 │   ├── offensive-osint/SKILL.md       # router — dispatches to sub-skills below
+│   ├── recon-asset-discovery/SKILL.md # subdomains · ASN · CT · DNS · WHOIS
+│   ├── web-surface/SKILL.md           # probe paths · curl probes · Wayback · Postman
 │   ├── identity-fabric/SKILL.md       # Entra · Okta · ADFS · SAML · M365 · LinkedIn
-│   └── report-template/SKILL.md      # bug-bounty report scaffold
+│   ├── secrets-and-dorks/SKILL.md     # 48 regexes · 80+ dorks · 9 validators
+│   ├── post-discovery/SKILL.md        # JWT · AWS IAM · GitHub · Slack workflows
+│   ├── cloud-and-infra/SKILL.md       # cloud-native · K8s · CI-CD · TLS
+│   ├── people-breach-intel/SKILL.md   # breach · HudsonRock · email · people · media
+│   ├── analysis-and-reporting/SKILL.md # scoring · severity matrix · sector notes
+│   └── report-template/SKILL.md       # bug-bounty report scaffold
 ├── skills/offensive-osint/scripts/
 │   ├── h1_reference.py               # HackerOne disclosed-reports reference agent (no API key)
 │   └── secret_scan.py                # stdlib-only secret scanner (JSONL output)

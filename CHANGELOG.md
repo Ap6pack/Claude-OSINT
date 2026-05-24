@@ -7,13 +7,29 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [2.2.1] — 2026-05-24
+
+### Added
+
+- **7 remaining offensive-osint sub-skills** (all under 500 lines):
+  - `recon-asset-discovery` (286 lines) — subdomains, ASN/BGP, CT logs, WHOIS/RDAP, DNS catalog, geospatial, regional search engines.
+  - `web-surface` (364 lines) — Swagger/GraphQL probe paths, curl one-liners, vendor fingerprints, CDN bypass, Wayback CDX, Postman, endpoint scoring.
+  - `secrets-and-dorks` (312 lines) — 48-pattern secret regex catalog, 80+ dork corpus, GitHub code-search dorks, 9 read-only validators.
+  - `post-discovery` (240 lines) — JWT triage, AWS IAM enum, GitHub/Slack post-credential workflows. Gated: requires validator confirmation first.
+  - `cloud-and-infra` (236 lines) — cloud-native fingerprints, K8s/etcd/kubelet, CI/CD exposure, TLS deep audit.
+  - `people-breach-intel` (313 lines) — HudsonRock, breach data, username/email/phone, people search, social media, crypto, media.
+  - `analysis-and-reporting` (303 lines) — scoring rubrics, attack-path hints, severity decision matrix, sector-specific notes.
+- **Updated README.md** — structure block and What is this? section updated to list all sub-skills.
+
+---
+
 ## [2.2] — 2026-05-24
 
 ### Architecture
 
 - **Refactored `offensive-osint` from monolith to router + sub-skills.** The 4,168-line single file has been replaced with a 62-line router (`skills/offensive-osint/SKILL.md`) that dispatches to focused sub-skills by task type. Each sub-skill is self-contained and under 500 lines, preventing context overload in long sessions.
-- **Added `identity-fabric` sub-skill** (`skills/identity-fabric/SKILL.md`, 426 lines). Covers Microsoft Entra, Okta, ADFS, Google Workspace, generic OIDC, SAML metadata, AWS account-ID extraction, M365 deep enum (Teams/SharePoint/OneDrive/OAuth/Power Platform), GraphQL field-suggestion enumeration, and LinkedIn employee enumeration with role prioritization (§22 + §41 from the original arsenal).
-- **Added `report-template` skill** (`skills/report-template/SKILL.md`). Generic bug-bounty report scaffold.
+- **Added `identity-fabric` sub-skill** (426 lines) — Entra, Okta, ADFS, SAML, M365 deep enum, GraphQL field-suggestion, LinkedIn employee enum.
+- **Added `report-template` skill** — generic bug-bounty report scaffold.
 
 ### Setup
 
