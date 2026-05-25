@@ -5,8 +5,8 @@ The "how to think" reference for external red-team OSINT and bug-bounty reconnai
 | Field | Value |
 |---|---|
 | Name | `osint-methodology` |
-| Version | 2.1 |
-| Lines | ~1,700 |
+| Version | 2.2 |
+| Lines | ~455 |
 | Top-level sections | 33 |
 | Subsections | ~125 |
 | Companion skill | [`offensive-osint`](../offensive-osint/) |

@@ -147,4 +147,4 @@ Grade: ___
 
 Re-run this suite after every skill edit. Add new prompts when you discover new behavior gaps. Open issues for failures.
 
-Last updated: 2026-05-19. Skill versions: 2.1 + 2.2-dev.
+Last updated: 2026-05-24. Skill versions: 2.2 + 2.2.

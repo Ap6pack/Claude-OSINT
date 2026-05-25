@@ -28,7 +28,7 @@ claude-osint/
 ├── skills/
 │   ├── osint-methodology/SKILL.md     # how to think  (455 lines)
 │   └── offensive-osint/
-│       ├── SKILL.md                   # what to reach for (4,168 lines)
+│       ├── SKILL.md                   # what to reach for (~4,200 lines)
 │       ├── scripts/secret_scan.py     # stdlib-only secret scanner
 │       └── scripts/h1_reference.py    # HackerOne disclosed-reports reference agent
 ├── docs/                              # architecture · coverage · install · usage

@@ -7,7 +7,7 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [Unreleased]
+## [2.2.0] — 2026-05-24
 
 ### `offensive-osint` — feat: HackerOne hacktivity reference agent (§29.3)
 

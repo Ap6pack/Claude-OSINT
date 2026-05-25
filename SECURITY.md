@@ -53,8 +53,9 @@ If you used these skills during an authorized engagement and found a vulnerabili
 
 | Version | Support status |
 |---|---|
-| 2.1.x (current) | ✅ Active |
-| 2.0.x | ⚠️ Bug fixes only |
+| 2.2.x (current) | ✅ Active |
+| 2.1.x | ⚠️ Bug fixes only |
+| 2.0.x | ❌ End of life |
 | 1.x | ❌ End of life |
 
 ## Security best practices for users

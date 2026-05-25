@@ -5,8 +5,8 @@ The "what to reach for" operational arsenal for external red-team OSINT and bug-
 | Field | Value |
 |---|---|
 | Name | `offensive-osint` |
-| Version | 2.1 |
-| Lines | ~3,800 |
+| Version | 2.2 |
+| Lines | ~4,200 |
 | Top-level sections | 51 |
 | Subsections | ~135 |
 | Companion skill | [`osint-methodology`](../osint-methodology/) |
