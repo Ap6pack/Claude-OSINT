@@ -32,6 +32,28 @@ triggers:
 
 ---
 
+## BEHAVIORAL CONTRACT
+
+**When triggered:** Endpoint scoring, finding severity classification, attack-path hint generation, mobile app ownership assessment, vulnerability prioritization, or sector-specific recon analysis is needed.
+
+**Execute:**
+1. For every classified API endpoint, compute the endpoint interest score (§1). If score >= 70, attach an attack-path hint from §3 templates.
+2. For mobile apps, compute ownership confidence (§2). Accept if >= 70; below threshold = `mobile_review_pending`.
+3. For every finding, classify severity using the decision matrix (§4). Apply sector severity overrides (§5) when target is in a regulated sector.
+4. For HIGH/CRITICAL findings, emit the matching attack-path hint from §3 templates.
+5. Write sidecar JSON files (§6) for cross-module coordination when this module produces outputs that feed other modules.
+6. Evidence handling: URL + UTC timestamp + SHA-256 for all downloads.
+
+**Output:** Scored findings with severity, attack-path hints, and sidecar JSON where applicable. All findings use `osint-methodology` §3 schema.
+
+**Severity rules:** §1 thresholds for endpoint scores (>=90 CRITICAL, 70-89 HIGH, 50-69 MEDIUM, 25-49 LOW, <25 INFO). §4 decision matrix (80+ examples). §5 sector overrides are mandatory — never downgrade a sector-specific severity.
+
+**Gating rules:** Mobile apps below ownership threshold 70 = `mobile_review_pending`, do not deep-analyze. ICS/SCADA targets require explicit OT team coordination before any active probing.
+
+**Chain to:** Feed severity + attack-path hints to `osint-methodology` §16 for client deliverable generation. Receive findings from all other sub-skills for classification.
+
+---
+
 ## 1. Endpoint Interest Score — 0–100 Rubric
 
 For every classified API endpoint, apply this rubric:
@@ -170,42 +192,26 @@ When emitting a HIGH/CRITICAL finding (score ≥ 70), include a one-sentence `at
 
 ---
 
-## 5. AI-Assisted OSINT
+## 5. Sector Severity Overrides
 
-> **Warning:** Never paste PII, sensitive IOCs, or unique pivots into cloud LLMs.
+| Sector | Condition | Severity |
+|---|---|---|
+| Healthcare | PHI exposure | **CRITICAL** |
+| Healthcare | HL7/DICOM open without auth | **CRITICAL** |
+| Healthcare | DICOM port 11112 or 4242 open | **CRITICAL** |
+| Finance | Account/balance data exposure | **CRITICAL** |
+| Finance | SWIFT terminal external-facing | **CRITICAL** |
+| Finance | FIX protocol (port 9876) cleartext | HIGH |
+| ICS/SCADA | Any active probe without OT team coordination | **FORBIDDEN** |
+| ICS/SCADA | Modbus (502) / BACnet (47808) / S7 (102) open | **CRITICAL** |
+| IoT | MQTT (1883) readable without auth | HIGH |
+| Government | Any finding | Severity >= commercial equivalent; political sensitivity applies |
 
-| Tool | Strength |
-|------|---------|
-| [ChatGPT](https://chat.openai.com/) (paid) | Log parsing, dataset analysis, Code Interpreter for CSV/JSON |
-| [Claude](https://claude.ai/) (paid) | 200K-token context for large doc dumps + report synthesis |
-| [Gemini](https://gemini.google.com/) | Long-context; Deep Research mode with citations |
-| [Perplexity Pro](https://www.perplexity.ai/) | Real-time web search + reasoning |
-
-**Local / privacy-preserving:** [Ollama](https://ollama.com/), [LM Studio](https://lmstudio.ai/).
-
----
-
-## 6. Archiving & Evidence Preservation
-
-- [archive.today](https://archive.today/) — one-page archiver + screenshot.
-- [URLScan.io](https://urlscan.io/) — webpage scan + resource map.
-- [ArchiveBox](https://archivebox.io/) — self-hosted (HTML, PDF, screenshots).
-- Wayback SavePageNow API v3 — on-demand archiving with job IDs.
-
-**Evidence handling:** URL + UTC timestamp + PNG + WARC/SingleFileZ archive, SHA-256 hash all downloads, separate work profiles per case, store evidence read-only, JSONL run logs with `run_id` + tool versions.
-
-```bash
-mkdir -p evidence/$(date -u +%Y%m%d)
-T="https://target.example"; P="/actuator/env"; TS=$(date -u +%Y%m%dT%H%M%SZ)
-SAFE_NAME=$(echo "${T}${P}" | tr '/:' '_')
-curl -sk -m 10 "$T$P" -o "evidence/$(date -u +%Y%m%d)/${TS}_${SAFE_NAME}.body" \
-  -D "evidence/$(date -u +%Y%m%d)/${TS}_${SAFE_NAME}.headers"
-sha256sum "evidence/$(date -u +%Y%m%d)/${TS}_${SAFE_NAME}".* > "evidence/$(date -u +%Y%m%d)/${TS}_${SAFE_NAME}.sha256"
-```
+> Full sector context and vendor details: `docs/reference/specialty-domains.md`
 
 ---
 
-## 7. Cross-Module Sidecar Coordination
+## 6. Cross-Module Sidecar Coordination
 
 Each module writes a sidecar JSON when it finishes:
 - `<scan>/mobile_endpoints.json` — endpoints + hostnames from APK static analysis.
@@ -223,81 +229,3 @@ Downstream modules check for sidecars on start; if present, ingest.
 }
 ```
 
----
-
-## 8. Tooling Quick-Install
-
-```bash
-# Subdomain enumeration
-go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
-go install github.com/owasp-amass/amass/v4/...@master
-go install github.com/d3mondev/puredns/v2@latest
-
-# HTTP probing & enrichment
-go install github.com/projectdiscovery/httpx/cmd/httpx@latest
-go install github.com/sensepost/gowitness@latest
-
-# Vulnerability scanning
-go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest && nuclei -ut
-go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
-
-# Content discovery
-go install github.com/ffuf/ffuf/v2@latest
-go install github.com/OJ/gobuster/v3@latest
-
-# JS / endpoint extraction
-go install github.com/projectdiscovery/katana/cmd/katana@latest
-go install github.com/lc/subjs@latest
-
-# Secret scanners
-go install github.com/trufflesecurity/trufflehog@latest
-go install github.com/zricethezav/gitleaks/v8@latest
-
-# Wayback
-go install github.com/lc/gau/v2/cmd/gau@latest
-go install github.com/tomnomnom/waybackurls@latest
-
-# Cloud
-pip install awscli s3scanner sslyze
-
-# Mobile
-pip install apkleaks androguard
-
-# Misc utilities
-go install github.com/tomnomnom/anew@latest
-sudo apt install jq
-```
-
-**Full PD toolkit:** `go install -v github.com/projectdiscovery/pdtm/cmd/pdtm@latest && pdtm -install-all`
-
----
-
-## 9. Sector-Specific Recon Notes
-
-### 9.1 Healthcare
-- **DICOM** (medical imaging) — port 11112, sometimes 4242.
-- **HL7 FHIR** — `/fhir/R4/<resource>` paths; OAuth / SMART-on-FHIR posture varies widely.
-- **PACS/EHR vendors:** Epic (`*.epic.com`), Cerner/Oracle Health, Meditech.
-- Severity escalation: any PHI exposure → CRITICAL; HL7/DICOM open without auth → CRITICAL.
-
-### 9.2 Finance
-- **SWIFT terminals** — internal-only; if external-facing → CRITICAL.
-- **FIX protocol** (electronic trading) — port 9876; cleartext.
-- **Banking middleware:** Temenos T24, Finacle, FIS, Jack Henry, Fiserv.
-- Severity escalation: account/balance data exposure → CRITICAL; SWIFT exposure → CRITICAL.
-
-### 9.3 ICS / SCADA / OT
-
-> **Caution:** even passive scanning can disrupt ICS. Do NOT actively probe without explicit RoE + OT team coordination.
-
-- **Modbus** — port 502 (TCP). **BACnet** — port 47808 (UDP). **Siemens S7** — port 102.
-- Sources: Shodan ICS-specific filters (`port:502`, `tag:ics`), Censys, Onyphe.
-
-### 9.4 IoT / Consumer / SOHO
-- **MQTT** — port 1883 (cleartext), 8883 (TLS). Topics often readable without auth.
-- **Camera DVRs/NVRs** — Hikvision, Dahua, Axis. Multiple CVEs.
-
-### 9.5 Government
-- **FedRAMP / FISMA / DoD CMMC** — defensive posture generally above baseline.
-- **OSINT sources:** USAspending.gov, SAM.gov (procurement).
-- Severity: as high or higher than commercial; political sensitivity on top.

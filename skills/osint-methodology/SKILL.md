@@ -59,6 +59,30 @@ triggers:
 
 # OSINT Methodology — External Red-Team Edition
 
+## BEHAVIORAL CONTRACT
+
+**When triggered:** Planning/executing authorized external recon, mapping an org's attack surface, investigating a person/entity, producing engagement deliverables, or methodology/framework questions about OSINT tradecraft.
+
+**Execute:**
+1. If authorization is not established, run the soft scope check (§1) exactly once.
+2. Identify which pipeline stage (§7) the user/engagement is in or needs to start.
+3. Propose the next concrete action from the priority order (§7.1), citing the relevant sub-skill to co-load.
+4. Tag every assertion with a confidence level (§2). Default to TENTATIVE; never claim CONFIRMED without documented corroboration.
+5. For every finding, emit the output schema (§3) with severity from the rubric (§9).
+6. Apply detectability tagging (§6.2) to every proposed probe.
+7. If detection signs appear, execute the back-off ladder (§6.4).
+8. Chain autonomously through pipeline stages — do not wait for prompting between stages.
+
+**Output:** Structured findings per §3 schema. Deliverables per §14 templates.
+
+**Severity rules:** §9 anchors + escalation rules. HSTS missing on auth path = HIGH. Wildcard CORS + credentials = HIGH. Endpoint score >= 70 = at least HIGH. Domain breach >= 10 employees = CRITICAL. KEV CVE match = CRITICAL.
+
+**Gating rules:** Never skip authorization check on first mention of new target. Never claim CONFIRMED on single-source evidence. No destructive probes unless explicit --aggressive mode.
+
+**Chain to:** Always co-load `offensive-osint` (router). Load specific sub-skills per §11 pointers as engagement progresses. Chain autonomously through priority order (§7.1).
+
+---
+
 ## 0. When to Use / When NOT
 
 **Use this skill when:** planning or executing authorized external recon (red team, bug bounty, ASM); mapping an org's attack surface; investigating a person/entity/threat-actor; producing client deliverables.
@@ -354,39 +378,7 @@ Highest-ROI single technique for external red teams. Run on every engagement.
 
 ---
 
-## 13. Specialty OSINT Domains
-
-**Cryptocurrency** — track flows with Cielo, TRM, Arkham, MetaSleuth. L2/rollup: start at L1 bridge events; use L2 explorers for in-rollup activity. Caution: bridges mint/burn (avoid 1:1 flow assumptions); MEV paths create false direct trails.
-
-**Image / Video / Chronolocation** — reverse image search (Google Lens, Yandex, TinEye); EXIF via ExifTool; forensics via Forensically/FotoForensics; geolocation via foreground+background landmark analysis, Street View, Overpass Turbo, PeakVisor. Shadow analysis: SunCalc, ShadeMap. Satellite: Google Earth Pro historical, Sentinel Hub.
-
-**Threat Actor Investigation** — scoping: actor hypothesis from CERT/vendor reports → IOC harvest → infra mapping via CT log pivots, shared hosting, NS reuse, HTML fingerprints → artifact profiling (PDB paths, Rich headers, SSDEEP/YARA) → social pivots (handles, code snippets, job posts). Attribution discipline: rule of three; separate capability from intent; prefer durable pivots (code-signing certs, build path idioms) over ephemeral (resolving IPs). Russia pivots: EGRUL, Rusprofile, hh.ru, VKontakte. China pivots: gsxt.gov.cn, Tianyancha, ICP filings, Weibo, Zhihu.
-
-**People & Social Media** — username enumeration: WhatsMyName, Sherlock, Maigret. Face search: PimEyes, Exposing.ai. Social graph: Maltego, SocialBlade. Bluesky: DID resolution via `bsky.social/xrpc/`, firehose via Firesky. Mastodon: WebFinger discovery; FediSearch cross-instance.
-
----
-
-## 14. Anti-Patterns & Common Failure Modes
-
-- **Single-source attribution.** Rule of three.
-- **Trusting vendor labels as ground truth.** Labels are hypotheses.
-- **Favicon-hash = ownership.** Shared infra, shared CMS, shared CDN all produce matches.
-- **Snippet-only dork as CONFIRMED.** TENTATIVE until visited.
-- **Pasting real PII / creds into cloud LLMs.** Local models only.
-- **Mirror-imaging the threat actor.** They don't think like you.
-- **Attribution by IP geolocation.** VPNs and residential proxies exist.
-- **Ignoring CT-log lag.** Absence ≠ doesn't exist; lag can be minutes to hours.
-- **Counting Wayback as "the site at time T."** Best-effort; many requests fail.
-- **Letting the asset graph carry untyped strings.** Every discovery is an asset.
-- **Skipping the scope check.** Ask once when in doubt.
-- **Forgetting UTC.** Local time creates correlation bugs.
-- **Continuing to probe after a WAF block.** Back off (§6.4).
-- **Skipping confidence-upgrade documentation.** TENTATIVE needs a path to CONFIRMED.
-- **Treating exec-summary as an afterthought.** Plan deliverables at engagement start.
-
----
-
-## 15. Bug Bounty Submission & Responsible Disclosure
+## 13. Bug Bounty Submission & Responsible Disclosure
 
 **Platforms:** HackerOne (CVSS-based) · Bugcrowd (VRT: P1–P5) · Intigriti · YesWeHack · HackenProof (crypto-focused) · Open Bug Bounty (XSS/SSRF only) · `/.well-known/security.txt` for unprogrammed targets.
 
@@ -405,7 +397,7 @@ Remediation: concrete, actionable recommendation.
 
 ---
 
-## 16. Client Deliverable Templates
+## 14. Client Deliverable Templates
 
 **Executive summary structure:** engagement metadata → top 3–5 findings (title + business impact + remediation effort) → postural observations (email security, identity fabric, cloud surface, mobile) → aggregate metrics (assets, findings by severity, live creds confirmed) → recommended next steps with timeline.
 
@@ -426,30 +418,3 @@ Remediation: concrete, actionable recommendation.
 
 **Reproduction package:** `run-log.jsonl` + `assets.db` + `findings.db` + `evidence/` (screenshots, HTTP captures, downloads with `.sha256`) + `re-test-script.sh` + engagement metadata.
 
----
-
-## 17. Skill Self-Test
-
-Drop these into a fresh session to verify the skill loads correctly.
-
-1. *"External recon on acme.com (in-scope BB). Where do I start?"* → §0, §1, §7, §7.1.
-2. *"Detect Entra vs Okta vs ADFS without active probing."* → §11 + companion skill §22.
-3. *"50 subdomains, 12 webapps, 23 emails — triage order?"* → §8.2 + §7.1.
-4. *"Found live AWS key in GitHub repo. Should I validate it?"* → §6.3.
-5. *"Probes getting 429s and Cloudflare interstitial. What now?"* → §6.4.
-6. *"200 emails harvested, org uses Entra. Highest-ROI next step?"* → §12.
-7. *"Target fully behind Cloudflare. How to find the origin?"* → §11 (WAF/CDN pointer) + companion skill §16.15.
-8. *"100 CVEs from a Nuclei scan. Prioritize."* → §11 (vuln prioritization pointer) + companion skill §29.2.
-9. *"Authorized engagement asks for phishing-feasibility shortlist."* → §11 (phishing pointer).
-10. *"Found unauth POST endpoint on HackerOne target. Write the report."* → §15.
-11. *"Write exec summary for 2 CRIT, 5 HIGH, 12 MED."* → §16.
-12. *"Run full subdomain enum on chase.com."* → §1 (scope check; should NOT run).
-
----
-
-## 18. Changelog
-
-- **v2.2 (2026-04-29)** — refactor: trimmed from 1,694 to ~480 lines. Compressed implementation-detail sections (§11–§15, §27–§31 original) to pointers to `offensive-osint`. Retained full framework core: confidence levels, pipeline, asset graph, severity rubric, OpSec, breach correlation, anti-patterns, deliverable templates. Removed duplicate content; combined specialty domains into single §13; merged §23–§25 into §13; collapsed §27–§29 into §11 pointer block.
-- **v2.1 (2026-04-27)** — comprehensive expansion based on 32-prompt smoke-test gap analysis. PASS rate: 31/32.
-- **v2.0 (2026-04-27)** — major rewrite for external red-team posture.
-- **v1.x** — original framework based on SnailSploit/offensive-checklist.

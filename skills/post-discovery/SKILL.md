@@ -25,16 +25,25 @@ triggers:
 
 ---
 
-## SCOPE GATE — READ THIS FIRST
+## BEHAVIORAL CONTRACT
 
-These workflows are NOT read-only. They enumerate what an authenticated credential can access.
+**When triggered:** A validated-live credential requires post-credential enumeration — AWS IAM scope, GitHub PAT repos, Slack workspace, JWT triage, Postman workspace, or AI API key scope.
 
-**Prerequisites before running any workflow here:**
-1. Validator from `secrets-and-dorks` §4 confirmed the key is **`verified_live`**.
-2. Rules of Engagement explicitly authorize credential validation beyond liveness check.
-3. You are NOT creating, modifying, deleting, or sending anything.
+**Execute:**
+1. Confirm the credential was validated by `secrets-and-dorks` §4 as `verified_live`.
+2. Confirm Rules of Engagement explicitly authorize credential enumeration beyond liveness check.
+3. If either prerequisite is missing: emit `validation_skipped_by_policy`, stop, document why.
+4. Match the credential type to the provider-specific workflow (§1-8 below).
+5. Execute every read-only probe in the matching workflow. Never create, modify, delete, or send.
+6. Document all findings with scope, account_id, detectability, and checked_at UTC.
 
-If RoE is unclear → `validation_skipped_by_policy`, stop, document.
+**Output:** Per-credential scope report using `osint-methodology` §3 finding schema — account_id, permissions discovered, accessible resources, privilege scope.
+
+**Severity rules:** Per `analysis-and-reporting` §4 severity decision matrix. AWS root key = CRITICAL. Broad-scope PMAK = CRITICAL. GitHub PAT with repo write = HIGH.
+
+**Gating rules:** Prerequisites 1-2 are hard gates. This skill is NOT read-only reconnaissance — it enumerates authenticated access. No workflow runs without both gates passing.
+
+**Chain to:** Feed enumeration results back to `analysis-and-reporting` for severity scoring and attack-path hints. Feed to `osint-methodology` §16 for client deliverable generation.
 
 ---
 

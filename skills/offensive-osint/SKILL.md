@@ -28,6 +28,25 @@ triggers:
 
 ---
 
+## BEHAVIORAL CONTRACT
+
+**When triggered:** Any external recon, bug bounty, ASM engagement, or general "where do I start" offensive OSINT request.
+
+**Execute:**
+1. Load `osint-methodology` — identify the pipeline stage and scope.
+2. Match the current task to a sub-skill using the sub-skill map below.
+3. Load that sub-skill and begin execution immediately.
+4. Propose the next concrete action without waiting to be asked.
+5. When one sub-skill's work completes, chain to the next relevant sub-skill autonomously — follow the pipeline priority order from `osint-methodology` §7.1.
+
+**Output:** Delegation to the appropriate sub-skill(s). This router produces no findings itself.
+
+**Gating rules:** Authorized targets only. When scope is unclear, ask once before proceeding. Hard rules (below) are always-on across all sub-skills.
+
+**Chain to:** Autonomously chain through sub-skills following `osint-methodology` §7.1 priority order: breaches → GitHub recon → misconfig sweep → cloud buckets → ports → email OSINT → web tech → Wayback → DNS/email security → certs/TLS → ASN/reverse DNS → typosquats.
+
+---
+
 ## Sub-skill map
 
 Load the sub-skill that matches the current task. Each is self-contained and under 500 lines.

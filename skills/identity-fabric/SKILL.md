@@ -36,11 +36,34 @@ triggers:
 > Sub-skill of `offensive-osint`. For pipeline and triage context load `osint-methodology`.
 > Authorized targets only.
 
-## 22. Identity Fabric — Concrete Endpoints
+## BEHAVIORAL CONTRACT
+
+**When triggered:** SSO/IdP fingerprinting, tenant discovery, auth architecture mapping, Microsoft 365 enumeration, Okta/Entra/ADFS probing, OIDC discovery, LinkedIn employee enumeration, or device-code phishing feasibility assessment is needed.
+
+**Execute:**
+1. Probe OIDC discovery endpoints (§1.1-1.5) on every alive subdomain and known SSO prefixes (auth.*, login.*, sso.*, idp.*).
+2. Extract tenant GUIDs from OIDC metadata issuer fields.
+3. Run getuserrealm.srf to classify Managed vs Federated (§1.1).
+4. If deep mode authorized, run GetCredentialType user-enum capped at 20 attempts (§1.1). Medium detectability.
+5. Probe M365 deep surfaces: SharePoint, OneDrive, Teams federation (§1.8).
+6. Check device-code phishing feasibility (§1.8).
+7. Extract AWS account IDs, OAuth client_ids, and scopes from JSON/HTML/JS (§1.7).
+8. For LinkedIn employee enum: use Google dorking (§2.1), prioritize by role tier (§2.2), derive candidate emails (§2.3), output per §2.4 schema.
+9. Feed discovered tenants to `people-breach-intel` for SSO_EXPOSURE correlation.
+
+**Output:** Per-tenant and per-person findings. Tenant = asset type `sso_tenant` with GUID. Person = asset type `person` with derived emails at TENTATIVE confidence.
+
+**Severity rules:** SharePoint anonymous share = HIGH. Device-code phishing feasible = MEDIUM. GetCredentialType user-enum success = INFO (asset only, not a vulnerability).
+
+**Gating rules:** GetCredentialType and Okta authn are medium-detectability; cap at 20 per tenant. LinkedIn enum: throttle to <20 profile views/day per persona. For sock-puppet discipline, see `osint-methodology` §6.1.
+
+**Chain to:** Feed tenant list to `people-breach-intel` for SSO_EXPOSURE correlation. Load `osint-methodology` §12 for breach × identity correlation logic. Feed derived emails to `secrets-and-dorks` for breach lookups.
+
+## 1. Identity Fabric — Concrete Endpoints
 
 Methodology lives in the companion `osint-methodology` skill §11. This is the URL/payload reference.
 
-### 22.1 Microsoft Entra (Azure AD)
+### 1.1 Microsoft Entra (Azure AD)
 
 **OIDC metadata + tenant GUID extraction:**
 ```
@@ -102,7 +125,7 @@ Body:
 ```
 Response field `IfExistsResult` indicates user existence: `0` = exists, `1` = doesn't exist, `5` = exists in federated tenant. Detectability: medium (logged in tenant audit). Cap at 20 attempts per tenant.
 
-### 22.2 Okta
+### 1.2 Okta
 
 **Org slug derivation:** start with stems from discovered subdomains and root-domain stem. Probe `<slug>.okta.com` and `<slug>.oktapreview.com`. Slug regex:
 ```regex
@@ -125,7 +148,7 @@ Response distinguishes user existence:
 - `401` with `status: PASSWORD_WARN` / `LOCKED_OUT` / `MFA_REQUIRED` → user exists.
 Detectability: medium (audit-log per attempt). Cap at 20 attempts per tenant.
 
-### 22.3 ADFS
+### 1.3 ADFS
 
 **Passive fingerprint:**
 ```
@@ -139,7 +162,7 @@ GET https://{domain}/adfs/Services/Trust/mex
 ```
 Returns SOAP federation metadata including endpoint URLs, signing certs, and supported claim types.
 
-### 22.4 Google Workspace
+### 1.4 Google Workspace
 
 **OIDC discovery:**
 ```
@@ -147,7 +170,7 @@ GET https://{domain}/.well-known/openid-configuration
 ```
 Google-Workspace-hosted-domain customers expose discovery endpoints with characteristic `issuer` URI (`https://accounts.google.com`) and JWKS URI. MX records pointing to `aspmx.l.google.com` are a corroborating signal.
 
-### 22.5 Generic OIDC (Keycloak / Auth0 / Ping / OneLogin / Duo)
+### 1.5 Generic OIDC (Keycloak / Auth0 / Ping / OneLogin / Duo)
 
 **Discovery:** probe `/.well-known/openid-configuration` on every alive subdomain. The `issuer` and `authorization_endpoint` field URLs fingerprint the product:
 
@@ -160,11 +183,11 @@ Google-Workspace-hosted-domain customers expose discovery endpoints with charact
 | Keycloak | URL contains `/realms/<realm>` |
 | OneLogin | `https://*.onelogin.com` |
 
-### 22.6 SAML metadata
+### 1.6 SAML metadata
 
 See §16.6.
 
-### 22.7 AWS account-ID extraction
+### 1.7 AWS account-ID extraction
 
 **S3 bucket region header (passive):**
 ```
@@ -198,7 +221,7 @@ Capture group: 12-digit AWS account ID.
 (?i)["']?scope["']?\s*[:=]\s*["']([^"']+)["']
 ```
 
-### 22.8 Microsoft 365 Deep Enumeration (Teams / SharePoint / OneDrive / OAuth)
+### 1.8 Microsoft 365 Deep Enumeration (Teams / SharePoint / OneDrive / OAuth)
 
 **Teams federation status:**
 ```bash
@@ -269,7 +292,7 @@ If non-null and tenant doesn't restrict device-code: MEDIUM finding (device-code
 - `device_authorization_endpoint` enabled on tenant → MEDIUM (operational risk).
 - Multi-tenant OAuth app with broad Graph scopes published by target → HIGH.
 
-### 22.9 GraphQL Field-Suggestion Enumeration (when introspection disabled)
+### 1.9 GraphQL Field-Suggestion Enumeration (when introspection disabled)
 
 When the standard introspection query (§16.2) returns `"errors":[{"message":"GraphQL introspection is disabled"}]`, fall back to field-suggestion enumeration. Apollo and most GraphQL libraries enable "did you mean" suggestions by default.
 
@@ -292,8 +315,8 @@ curl -sk -m 10 -X POST "$T/graphql" \
 Iterate over a candidate-field wordlist (use SecLists `Discovery/Web-Content/graphql.txt` or `clairvoyance` library's seed list). Each suggestion reveals real field names. Continue until no new suggestions emerge.
 
 **Tooling:**
-- **Clairvoyance** (`pip install clairvoyance`) — automated field-suggestion enumerator. `clairvoyance -w wordlist.txt -o schema.json https://target.example/graphql`.
-- **GraphQL-Cop** — auditor that probes for introspection, batching, depth-limit, suggestion config. `pip install graphql-cop`.
+- **Clairvoyance** — automated field-suggestion enumerator. `clairvoyance -w wordlist.txt -o schema.json https://target.example/graphql`. (Install: see `docs/reference/tooling-install.md`)
+- **GraphQL-Cop** — auditor that probes for introspection, batching, depth-limit, suggestion config. (Install: see `docs/reference/tooling-install.md`)
 - **InQL** (Burp extension) — Burp Suite extension for GraphQL endpoint analysis.
 - **GraphQL Voyager** — visualize once schema is reconstructed.
 
@@ -337,11 +360,11 @@ Iterate over a candidate-field wordlist (use SecLists `Discovery/Web-Content/gra
 
 ---
 
-## 41. LinkedIn Employee Enumeration
+## 2. LinkedIn Employee Enumeration
 
 LinkedIn is the highest-signal source for employee enumeration during external red-team work. Use it for: target list generation, role prioritization, email-pattern derivation, pretext development.
 
-### 41.1 Search techniques
+### 2.1 Search techniques
 
 **Free LinkedIn (no Sales Navigator):**
 - People-search by company: `https://www.linkedin.com/search/results/people/?currentCompany=["<company-id>"]`. Get company-id from the company's LinkedIn URL or profile JSON.
@@ -361,12 +384,10 @@ site:linkedin.com/in "<company name>" -inurl:/posts
 - Most efficient if available. Lead lists by company × role × seniority. Export CSV.
 
 **Tools:**
-- **theHarvester** with `-b linkedin` source (uses search-engine-driven enum).
-- **CrossLinked** — `https://github.com/m8r0wn/CrossLinked` — CLI tool that does the LinkedIn dorking.
 - **LinkedInDumper** / **Linkook** — open-source enum tools (verify currency; they break frequently).
 - **PhantomBuster** / **Apollo.io** / **RocketReach** / **Hunter.io Email Finder** — paid SaaS that does the enum + email derivation in one workflow.
 
-### 41.2 Role inference for prioritization
+### 2.2 Role inference for prioritization
 
 For each enumerated employee, capture:
 - **Name** (canonical form: First Last; remove suffixes like "PMP", "PhD" for email-pattern matching).
@@ -386,21 +407,15 @@ For each enumerated employee, capture:
 | **P4** | Sales, Marketing, HR, Finance Analyst, Customer Support | SaaS access (Salesforce, HubSpot, Workday); BEC enabler. |
 | **P5** | Generic individual contributor, intern, contractor | Lowest single-account value but breadth matters. |
 
-### 41.3 Email-pattern derivation from confirmed names
+### 2.3 Email-pattern derivation from confirmed names
 
 For each captured name, derive candidate emails using §11 templates. Cross-reference against:
 - Hunter.io `domain-search` to confirm pattern.
 - Breach corpus (HudsonRock + HIBP + DeHashed + IntelX) to find matches.
 
-### 41.4 Sock-puppet considerations
+For sock-puppet discipline, see `osint-methodology` §6.1.
 
-- **Never connect from the corporate persona.** LinkedIn shows "viewed your profile" notifications.
-- **Use a sock puppet** with a plausible profile (5+ years built history, similar industry, mutual connections to throw off correlation). Tools: persona-builder workflows.
-- **LinkedIn "private mode" (anonymous viewing)** — toggle in settings; reduces one signal but Sales Navigator can still see anonymized "someone viewed your profile."
-- **Connection requests are detectable.** Don't send any during recon.
-- **Profile views accumulate suspicion** if you view 100+ employees of one company in a day. Throttle: <20/day per persona.
-
-### 41.5 Output
+### 2.4 Output
 
 Per discovered employee:
 ```

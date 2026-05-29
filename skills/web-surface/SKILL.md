@@ -1,18 +1,14 @@
 ---
 name: web-surface
-description: "Probe paths, curl one-liners, endpoint scoring, email security analysis, CDN bypass, vendor fingerprints, Postman search, Stack Exchange sweep, SaaS dorks, and Wayback CDX for authorized web-surface enumeration."
+description: "Probe paths, endpoint scoring, email security analysis, vendor fingerprints, documentation leak hunting, and API endpoint references for authorized web-surface enumeration."
 version: 1.0.0
 triggers:
   - swagger discovery
   - openapi discovery
   - graphql introspection
   - endpoint enumeration
-  - copy paste probes
-  - curl one-liner
   - email security analysis
   - SPF DMARC DKIM
-  - origin discovery
-  - CDN bypass
   - vendor product fingerprints
   - Citrix Netscaler
   - F5 BIG-IP
@@ -26,13 +22,37 @@ triggers:
   - stack exchange OSINT
   - subdomain takeover
   - documentation leak
-  - JS endpoint extraction
 ---
 
 # Web Surface Enumeration
 
 > Sub-skill of `offensive-osint`. Load `osint-methodology` for pipeline and triage context.
 > Authorized targets only.
+
+---
+
+## BEHAVIORAL CONTRACT
+
+**When triggered:** Web surface enumeration, Swagger/OpenAPI/GraphQL discovery, endpoint probing, email security analysis, vendor fingerprinting, documentation leak hunting, or subdomain takeover assessment is needed.
+
+**Execute:**
+1. For each alive webapp, probe the Swagger/OpenAPI paths (§1) and GraphQL paths (§2).
+2. Check high-risk ports (§3) against Shodan/naabu results.
+3. Audit security headers (§4) — escalate per sensitive-path rules.
+4. Run always-on HTTP checks (§5) with listed match logic.
+5. Audit email security posture (§6): parse SPF/DMARC/DKIM, map severity, infer SaaS tenants from TXT records.
+6. Fingerprint vendor products (§7) — cross-reference with CISA KEV for severity escalation.
+7. Check documentation/wiki leak paths (§8).
+8. Query API endpoints (§9) for Wayback CDX, Postman workspace search, and Stack Exchange OSINT.
+9. For each finding, assign severity per the inline tables and emit per `osint-methodology` §3 schema.
+
+**Output:** Per-finding results using `osint-methodology` §3 schema.
+
+**Severity rules:** Swagger/OpenAPI without auth = HIGH. GraphQL introspection without auth = HIGH. Vendor product matching KEV CVE = CRITICAL. Missing HSTS on login page = HIGH (escalated from MEDIUM).
+
+**Gating rules:** Authorized targets only. Detection-aware: if 429s or WAF blocks appear during probing, follow `osint-methodology` §6.4 back-off ladder.
+
+**Chain to:** Load `secrets-and-dorks` for secret scanning of discovered JS/API specs. Load `analysis-and-reporting` for endpoint interest scoring (score >= 70 gets attack-path hint). Feed discovered email security gaps to `people-breach-intel`.
 
 ---
 
@@ -138,69 +158,7 @@ Also parse `/robots.txt` `Disallow:` paths as next-tier wordlist.
 
 ---
 
-## 6. Copy-Paste Probes (curl one-liners)
-
-```bash
-T="https://target.example"
-
-# .git/config (CRITICAL)
-curl -sk -m 10 "$T/.git/config" | grep -E '\[core\]|\[remote|repositoryformatversion'
-
-# .env (CRITICAL)
-curl -sk -m 10 "$T/.env" | grep -E '^[[:space:]]*[A-Z_][A-Z0-9_]*[[:space:]]*='
-
-# Spring Boot actuator/env (CRITICAL)
-curl -sk -m 10 "$T/actuator/env" | grep -E '"propertySources"|systemProperties|systemEnvironment'
-
-# Spring Boot heapdump (CRITICAL)
-curl -sk -m 30 "$T/actuator/heapdump" -o /tmp/heap && file /tmp/heap | grep -i 'HPROF\|data'
-
-# Elasticsearch (HIGH)
-curl -sk -m 10 "$T/_cat/indices?v"
-
-# Jenkins console (HIGH)
-curl -sk -m 10 "$T/script" | grep -iE 'Jenkins|Script Console'
-
-# Tomcat manager — 401 = present+auth-gated; 200 = no auth
-curl -sk -m 10 "$T/manager/html" -w '%{http_code}\n' | tail -1
-
-# security.txt (INFO)
-curl -sk -m 10 "$T/.well-known/security.txt"
-```
-
-**GraphQL introspection:**
-```bash
-curl -sk -m 15 -X POST "https://target.example/graphql" \
-  -H 'Content-Type: application/json' \
-  -d '{"operationName":"IntrospectionQuery","query":"query IntrospectionQuery { __schema { types { name kind } queryType { name } mutationType { name } } }"}' | jq '.data.__schema.types | length'
-```
-
-**SSO subdomain prefixes:**
-```bash
-D="target.example"
-for prefix in auth login sso idp iam identity accounts oauth; do
-  echo "=== ${prefix}.${D} ===" && \
-  curl -sk -m 10 "https://${prefix}.${D}/.well-known/openid-configuration" -o /dev/null -w '%{http_code}\n'
-done
-```
-
-**Cloud bucket probes:**
-```bash
-B="candidate-bucket-name"
-curl -sk -m 10 -I "https://${B}.s3.amazonaws.com/" -w 'STATUS:%{http_code}\n' | head -20
-curl -sk -m 10 "https://${B}.s3.amazonaws.com/?list-type=2" | head -50
-curl -sk -m 10 -I "https://${B}.storage.googleapis.com/"
-curl -sk -m 10 -I "https://${B}.blob.core.windows.net/"
-```
-
-**Bulk probe with httpx:**
-```bash
-cat subdomains.txt | httpx -sc -title -tech-detect -path /actuator/env,/.git/config,/.env -mc 200,301,403
-```
-
----
-
-## 7. Email Security Analysis (SPF/DMARC/DKIM/BIMI/MTA-STS)
+## 6. Email Security Analysis (SPF/DMARC/DKIM/BIMI/MTA-STS)
 
 ```bash
 D="target.example"
@@ -231,40 +189,7 @@ $D = "target.example"
 
 ---
 
-## 8. Origin Discovery / CDN Bypass
-
-**DNS history:**
-```bash
-# Validin (free)
-curl -sk "https://app.validin.com/api/axon/${D}/dns" | jq .
-```
-
-**Favicon hash (Shodan):**
-```bash
-python3 -c "
-import urllib.request, codecs, mmh3
-data = urllib.request.urlopen('https://target.example/favicon.ico').read()
-print(mmh3.hash(codecs.encode(data, 'base64')))"
-shodan search "http.favicon.hash:<hash>" --fields ip_str,port,org
-```
-
-**Host-header probe (validate candidate):**
-```bash
-CANDIDATE_IP="203.0.113.42"
-curl -sk -m 10 -H "Host: target.example.com" "https://${CANDIDATE_IP}/" -o /tmp/candidate.html
-diff <(curl -sk -m 10 https://target.example.com/) /tmp/candidate.html | head -50
-```
-
-**Auxiliary subdomains that often skip CDN:**
-```bash
-for sub in mail smtp ftp direct origin origin-www old-www noproxy dev staging stg uat; do
-  dig +short A "${sub}.${D}"
-done
-```
-
----
-
-## 9. Vendor Product Fingerprints
+## 7. Vendor Product Fingerprints
 
 | Product | Fingerprint paths | KEV CVEs |
 |---|---|---|
@@ -289,7 +214,7 @@ nuclei -u $T -t http/cves/ -severity high,critical -etags fuzz
 
 ---
 
-## 10. Documentation / Wiki Leak Paths
+## 8. Documentation / Wiki Leak Paths
 
 | Platform | URL pattern |
 |---|---|
@@ -310,55 +235,10 @@ site:atlassian.net "{target}"
 
 ---
 
-## 11. Wayback CDX Deep Usage
+## 9. API Endpoints
 
-```bash
-D="target.example"
-# All URLs
-curl -sk "https://web.archive.org/cdx/search/cdx?url=${D}/*&output=json&fl=timestamp,original&limit=10000"
-
-# JS bundles only (with secret scan)
-curl -sk "https://web.archive.org/cdx/search/cdx?url=${D}/*.js&output=json&fl=timestamp,original&filter=statuscode:200" | \
-  jq -r '.[1:][] | "\(.[0]) \(.[1])"'
-
-# Legacy app pivot (when *.js empty for brochure-ware sites)
-for ext in asp aspx php jsp cfm; do
-  curl -sk "https://web.archive.org/cdx/search/cdx?url=${D}/*.${ext}&output=json&fl=timestamp,original&filter=statuscode:200&collapse=urlkey&limit=500"
-done
-```
-
----
-
-## 12. Postman Public Workspace Search
-
-```bash
-curl -sk -m 15 \
-  "https://www.postman.com/_api/ws/proxy" \
-  -H 'Content-Type: application/json' \
-  -H 'X-Entity-Team-Id: 0' \
-  -d '{"service":"search","method":"POST","path":"/search-all","body":{"queryIndices":["collaboration.workspace","runtime.collection","runtime.request"],"queryText":"acme.com","size":100,"from":0,"clientTraceId":"","queryAllIndices":false,"domain":"public"}}' | jq '.data[]'
-```
-
-Pagination via `from` (0, 100, 200...). Run secret catalog over every env var, pre-request script, and request body extracted.
-
----
-
-## 13. Stack Exchange OSINT Sweep
-
-```bash
-curl -sk "https://api.stackexchange.com/2.3/search/advanced?site=stackoverflow.com&q=target.example&filter=withbody&pagesize=100"
-```
-
-Extract code blocks with `<pre><code>([\s\S]*?)</code></pre>`, run secret catalog. Also check: `serverfault.com`, `dba.stackexchange.com`, `devops.stackexchange.com`.
-
----
-
-## 14. Public SaaS Collaboration Surfaces
-
-```
-site:trello.com "{target}"
-site:notion.so "{target}"
-site:miro.com "{target}"
-site:*.atlassian.net "{target}"
-site:airtable.com "{target}"
-```
+| Service | Endpoint | Method |
+|---|---|---|
+| Wayback CDX | `https://web.archive.org/cdx/search/cdx?url={domain}/*&output=json&fl=timestamp,original` | GET |
+| Postman search | `https://www.postman.com/_api/ws/proxy` | POST (body: `{"service":"search","method":"POST","path":"/search-all","body":{"queryIndices":["collaboration.workspace"],"queryText":"{domain}","size":100}}`) |
+| StackExchange | `https://api.stackexchange.com/2.3/search/advanced?site=stackoverflow.com&q={domain}&filter=withbody` | GET |

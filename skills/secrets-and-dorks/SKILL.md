@@ -30,6 +30,28 @@ triggers:
 
 ---
 
+## BEHAVIORAL CONTRACT
+
+**When triggered:** Secret scanning, leaked credential hunting, GitHub/Google/Bing dorking, API key discovery, or credential verification is needed.
+
+**Execute:**
+1. Run the 48-pattern secret catalog (§1) against the target corpus — GitHub code, Postman workspaces, JS bodies, sourceMaps, mobile strings, Wayback HTML, paste sites, Stack Exchange code blocks. Process patterns in order (most-specific first) to minimize false positives.
+2. Run the dork corpus (§2) across Google, Bing, Brave, DDG — substitute `{domain}` and `{company}`. Run across multiple engines (they surface different results).
+3. Run GitHub code-search dorks (§3) against the target domain stem, full domain, and company name.
+4. For every secret match: classify by catalog severity, then validate using the matching read-only validator from §4 (if one exists for that provider).
+5. Never validate credentials for which no read-only endpoint exists. Never validate AWS root ARNs (`:root`).
+6. For validated-live credentials: emit `SECRET_LEAK` finding at catalog severity, then chain to `post-discovery` for enumeration (gated on RoE).
+
+**Output:** `SECRET_LEAK` findings per `osint-methodology` §3 schema. Validator results per §4.10 schema (status, provider, account_id, scope, checked_at, detectability).
+
+**Severity rules:** Per catalog table (§1). False-positive-prone patterns (22 JWT, 23 Bearer, 29 Generic) require context check before emitting.
+
+**Gating rules:** Read-only validators only. Never create/modify/delete/send. Tag every validation with detectability + checked_at UTC.
+
+**Chain to:** Feed validated-live credentials to `post-discovery` for enumeration workflows. Feed GitHub dork results through §1 catalog for automated secret scanning. Feed all findings to `analysis-and-reporting` for severity classification and attack-path hints.
+
+---
+
 ## 1. Secret-Pattern Catalog — 48 Patterns
 
 Run against: GitHub code, Postman workspaces, JS bodies, sourcesContent blobs, mobile strings, Wayback HTML, paste sites, Stack Exchange code blocks. **Order matters: most-specific first.**

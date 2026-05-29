@@ -1,6 +1,6 @@
 ---
 name: people-breach-intel
-description: "Username/email investigation, breach data lookup, HudsonRock infostealer intel, people search, phone OSINT, email-pattern inference, email harvest, social media, threat intel, crypto OSINT, Telegram, job postings, Slack/Discord discovery, and package registry leaks."
+description: "Breach data lookup, HudsonRock infostealer intel, email-pattern inference, email harvest, Slack/Discord discovery, package registry leaks, and vulnerability prioritization endpoints."
 version: 1.0.0
 triggers:
   - breach lookup
@@ -9,28 +9,42 @@ triggers:
   - infostealer
   - dehashed
   - intelx
-  - username investigation
-  - email investigation
-  - people search
-  - phone OSINT
   - email pattern inference
   - email harvest
-  - social media OSINT
-  - threat intelligence
-  - cryptocurrency OSINT
-  - Telegram intelligence
-  - job posting tech stack
   - Slack workspace discovery
   - Discord server discovery
   - npm token leak
   - package registry leaks
-  - sat imagery
 ---
 
 # People, Breach & Intelligence
 
 > Sub-skill of `offensive-osint`. Load `osint-methodology` for pipeline and triage context.
 > Authorized targets only. Never paste PII or credentials into cloud LLMs.
+
+---
+
+## BEHAVIORAL CONTRACT
+
+**When triggered:** Breach lookups, username/email investigation, HudsonRock/HIBP/DeHashed queries, email-pattern inference, email harvesting, Slack/Discord discovery, or package registry leak hunting is needed.
+
+**Execute:**
+1. Run HudsonRock Cavalier domain lookup (§1) as the first call — highest ROI for external engagements.
+2. Cross-reference with HIBP and DeHashed for domain-level breach scope.
+3. Apply domain-level breach severity mapping (§1): >=10 employees = CRITICAL, 1-9 = HIGH, >=1 end-user = MEDIUM, 0 named = INFO.
+4. If SSO tenants discovered (from `identity-fabric`), intersect with breach corpus for SSO_EXPOSURE findings (§1).
+5. For known employee names: derive candidate emails using the 8-pattern template (§2), then harvest from 6 parallel sources (§3).
+6. Run Slack/Discord workspace discovery dorks (§6).
+7. For package registry targets: run historical-version secret scan workflow (§7).
+8. For each finding, emit per `osint-methodology` §3 schema.
+
+**Output:** Breach findings, SSO_EXPOSURE findings, person assets with derived emails, email-harvest results — all per `osint-methodology` §3 finding schema.
+
+**Severity rules:** §1 domain-level mapping. SSO_EXPOSURE = CRITICAL. Open Slack invite = HIGH. Package typosquat = MEDIUM.
+
+**Gating rules:** Never paste PII or credentials into cloud LLMs. Encrypt stealer logs at rest. SHA-256 every artifact. Redact passwords in client reports.
+
+**Chain to:** Receive SSO tenant list from `identity-fabric`. Feed validated emails to `identity-fabric` for GetCredentialType probing. Feed breach hits to `osint-methodology` §12 correlation logic. Feed secrets found in package registries to `secrets-and-dorks` for validation.
 
 ---
 
@@ -92,23 +106,7 @@ Evidence pack: tenant GUID + breach count + 3+ legacy URLs + autodiscover Micros
 
 ---
 
-## 2. Username & Email Investigation
-
-| Tool | Purpose |
-|------|---------|
-| [Sherlock](https://github.com/sherlock-project/sherlock) | Username search across social networks |
-| [Maigret](https://github.com/soxoj/maigret) | Profile collector by username |
-| [What's My Name](https://whatsmyname.app/) | Username search |
-| [Holehe](https://github.com/megadose/holehe) | Email registration check |
-| [Epieos](https://epieos.com/) | Email pivots and metadata |
-| [OSINT Industries](https://osint.industries/) | Email/username/phone lookups |
-| [Hunter.io](https://hunter.io/) | Domain → emails |
-| [EmailRep](https://emailrep.io/) | Email reputation |
-| [RocketReach](https://rocketreach.co/) / [Apollo](https://www.apollo.io/) | Email enrichment + pattern guessing |
-
----
-
-## 3. Email-Pattern Inference (TENTATIVE)
+## 2. Email-Pattern Inference (TENTATIVE)
 
 Generate 8 candidate addresses for `(first_name, last_name, domain)`:
 ```
@@ -126,7 +124,7 @@ Lowercase before lookup. Strip diacritics. If Hunter.io shows a dominant pattern
 
 ---
 
-## 4. Email-Harvest Source Stack
+## 3. Email-Harvest Source Stack
 
 Six parallel sources — dedup at the end:
 
@@ -144,56 +142,7 @@ Six parallel sources — dedup at the end:
 
 ---
 
-## 5. People Search
-
-- [TruePeopleSearch](https://www.truepeoplesearch.com/) — free U.S. people search.
-- [WhitePages](https://www.whitepages.com/), [Spokeo](https://www.spokeo.com/), [Webmii](https://webmii.com/), [Pipl](https://pipl.com/) (paid).
-- [FaceCheck](https://facecheck.id/) / [FaceSeek](https://faceseek.online/) — reverse face search.
-
----
-
-## 6. Phone Number OSINT
-
-- [TrueCaller](https://www.truecaller.com/) — caller ID + spam blocking.
-- [ThatsThem](https://thatsthem.com/) — reverse phone search.
-- [Infobel](https://infobel.com/) — non-USA phone search.
-- [FreeCarrierLookup](https://freecarrierlookup.com/) — carrier/type (US).
-
----
-
-## 7. Social Media
-
-| Platform | Tool |
-|----------|------|
-| Instagram | [Picuki](https://www.picuki.com/) — profile view without account |
-| X/Twitter | [snscrape](https://github.com/snscrape/snscrape) — preferred CLI scraper |
-| Facebook | [Graph Search](https://inteltechniques.com/tools/Facebook.html), [sowsearch.info](https://sowsearch.info/) |
-| YouTube/Twitch | [Social Blade](https://socialblade.com/) — analytics |
-| TikTok | [Tokboard](https://tokboard.com/) — trends + profile analytics |
-| Reddit | [Reveddit](https://www.reveddit.com/) — removed content |
-| Bluesky | [Firesky](https://firesky.tv/) — real-time firehose |
-| Mastodon | [FediSearch](https://fedisearch.skorpil.cz/) — cross-instance |
-| Faces | [Search4Faces](https://search4faces.com/) |
-
----
-
-## 8. Threat Intel & IOCs
-
-- CERT advisories: CISA/NSA/CSA, CERT-EU, NCSC-UK, JPCERT/CC, CERT-UA.
-- [MISP Project](https://www.misp-project.org/) and public MISP feeds.
-- [ThreatFox](https://threatfox.abuse.ch/), [URLHaus](https://urlhaus.abuse.ch/), [SSLBL](https://sslbl.abuse.ch/).
-- [MalwareBazaar](https://bazaar.abuse.ch/), [PhishTank](https://www.phishtank.com/).
-
-### 8.1 Vulnerability Prioritization
-
-| Source | What it tells you |
-|---|---|
-| [NVD](https://nvd.nist.gov/vuln/search) | Base CVE catalog with CVSS v2/v3 |
-| [EPSS](https://www.first.org/epss/) | 0.0–1.0 probability of exploit in next 30 days |
-| [CISA KEV](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json) | CVEs proven exploited in the wild |
-| [ExploitDB](https://www.exploit-db.com/) / `searchsploit` | POC code presence |
-| [Trickest CVE](https://github.com/trickest/cve) | Auto-generated CVE → public POC repo links |
-| [OSV.dev](https://osv.dev/) | Open-source vulnerability DB; JSON API |
+## 4. Vulnerability Prioritization Endpoints
 
 ```bash
 # EPSS score for a CVE
@@ -206,41 +155,18 @@ curl -sk https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerab
 
 ---
 
-## 9. Cryptocurrency OSINT
+## 5. ATS URL Patterns
 
-- [Blockchain.com](https://www.blockchain.com/explorer), [Etherscan](https://etherscan.io/), [Solscan](https://solscan.io/).
-- [Arkham](https://www.arkhamintelligence.com/) — multichain, entity labels, graphs.
-- [MetaSleuth](https://metasleuth.io/) — visual flow.
-- [Breadcrumbs](https://www.breadcrumbs.app/) — visual graphing + labels (freemium).
-- [Chainalysis](https://www.chainalysis.com/) / [Crystal Blockchain](https://crystalblockchain.com/) — pro analytics.
-- [L2Beat](https://l2beat.com/) — risk framework + TVL for L2s.
-
----
-
-## 10. Telegram & Messaging Intelligence
-
-- [TGStat](https://tgstat.com/) — channel analytics + search.
-- [Telemetr](https://telemetr.io/) — channel growth, overlaps, forwards.
-- View public Telegram channels: `https://t.me/s/<channel>`.
-- Google: `site:t.me "{target}"`.
-
----
-
-## 11. Job Posting Tech-Stack Analysis
-
-**Sources:**
-| Platform | URL |
+| Platform | URL Pattern |
 |---|---|
 | Lever (ATS) | `https://jobs.lever.co/<company>` |
 | Greenhouse (ATS) | `https://boards.greenhouse.io/<company>` |
 | AshbyHQ (ATS) | `https://jobs.ashbyhq.com/<company>` |
 | Company careers page | `https://careers.<target>.com` |
 
-**What to extract:** Required technologies → confirmed in-use; vendor names (Workday, Salesforce, Snowflake) → SaaS tenants; compliance frameworks (SOC2, FedRAMP, HIPAA, PCI) → defensive priorities; cloud + on-prem ratio hints.
-
 ---
 
-## 12. Slack / Discord / Telegram Workspace Discovery
+## 6. Slack / Discord / Telegram Workspace Discovery
 
 **Slack invite-link discovery:**
 ```
@@ -257,9 +183,9 @@ Returns server name, ID, member count.
 
 ---
 
-## 13. Package Registry Leak Hunting
+## 7. Package Registry Leak Hunting
 
-### 13.1 npm
+### 7.1 npm
 ```bash
 npm search "<target-keyword>"
 npm pack <package>@<version>
@@ -267,14 +193,14 @@ tar -xzf package-version.tgz
 # Run secret catalog over extracted files
 ```
 
-### 13.2 PyPI
+### 7.2 PyPI
 ```bash
 # Per-package history
 curl -sk "https://pypi.org/pypi/<package>/json" | jq '.releases | keys'
 pip download <package>==<version> --no-deps -d /tmp/pkg
 ```
 
-### 13.3 Workflow
+### 7.3 Workflow
 
 For each candidate package owned by target:
 1. List all historical versions (old versions often had leaked keys).
@@ -282,7 +208,7 @@ For each candidate package owned by target:
 3. Extract; run secret catalog.
 4. For Docker images: scan each layer with `dive` or `skopeo`.
 
-### 13.4 Typosquat Surveillance
+### 7.4 Typosquat Surveillance
 
 For every published package the target owns, generate typosquat candidates:
 ```bash
@@ -292,22 +218,3 @@ for candidate in acme-util acmeutils acme_utils; do
 done
 ```
 Unregistered candidate near target's published package → MEDIUM finding (typosquat / supply-chain risk).
-
----
-
-## 14. Sat Imagery for Physical Recon
-
-| Source | URL | Notes |
-|---|---|---|
-| **Google Earth Pro** | desktop app | Historical timeline; sub-meter for major cities |
-| **Google Maps** | maps.google.com | Street view inside building lobbies sometimes |
-| **Bing Maps Bird's Eye** | bing.com/maps | Oblique 45-degree; shows facades better |
-| **NearMap** (paid) | nearmap.com | Highest-resolution; frequent updates (US/AU/NZ/CA) |
-| **Sentinel Hub EO Browser** | apps.sentinel-hub.com | Free Sentinel-2 (10m); change detection |
-| **Wayback ArcGIS** | livingatlas.arcgis.com/wayback/ | Historical satellite |
-
-**What to extract:** entrance count/locations, parking lot ingress, fence lines, HVAC/utility access, adjacent occupants, smoking area locations (social-engineering staging), vehicle types.
-
-**OSINT beyond satellites:** LinkedIn employee photos (badge templates visible), Glassdoor office tour photos, Instagram geotagged photos at office address, press release "ribbon cutting" photos.
-
-**Discipline:** document imagery is public-source; note imagery date (buildings change).

@@ -1,7 +1,7 @@
 ---
 name: cloud-and-infra
-description: "Cloud-native service fingerprints, Kubernetes/container exposure, CI/CD platform exposure, TLS deep audit, ASN/BGP, CT monitoring, and reverse DNS sweep for authorized infrastructure recon."
-version: 1.0.0
+description: "Cloud-native service fingerprints, Kubernetes/container exposure, CI/CD platform exposure, TLS deep audit, and favicon hash pivot for authorized infrastructure recon."
+version: 1.1.0
 triggers:
   - cloud native fingerprint
   - Lambda function URL
@@ -15,19 +15,39 @@ triggers:
   - GitHub Actions secrets
   - TLS deep audit
   - JA3 JA4
-  - reverse DNS sweep
-  - IPv6 enumeration
-  - certificate transparency
-  - ASN BGP
   - container registry
   - Docker API
   - Argo CD
+  - favicon hash
 ---
 
 # Cloud & Infrastructure OSINT
 
 > Sub-skill of `offensive-osint`. Load `osint-methodology` for pipeline and triage context.
 > Authorized targets only.
+
+---
+
+## BEHAVIORAL CONTRACT
+
+**When triggered:** Cloud-native service fingerprinting, Kubernetes/container exposure, CI/CD platform exposure, TLS deep audit, or container registry leak hunting is needed.
+
+**Execute:**
+1. For each discovered subdomain/IP, match against cloud-native URL patterns (§1). Classify provider and service type.
+2. Check public-vs-auth-required on each cloud function endpoint (HEAD/GET).
+3. For K8s/container exposure: probe ports from §2 table (Docker 2375/2376, kubelet 10250, etcd 2379, K8s API 6443/8443). Anonymous access = CRITICAL.
+4. Check CI/CD platforms (§3) for unauthenticated access.
+5. Run TLS deep audit (§4) on every HTTPS endpoint in scope.
+6. Check public container registries (§2) for target-owned images.
+7. For each finding, emit per `osint-methodology` §3 schema.
+
+**Output:** Infrastructure findings with provider, service type, auth posture, severity. All per `osint-methodology` §3 schema.
+
+**Severity rules:** Inline per section tables. Docker API unencrypted = CRITICAL. Open kubelet = CRITICAL. Open etcd = CRITICAL. K8s API anonymous = HIGH. TLS 1.0/1.1 = MEDIUM.
+
+**Gating rules:** Active port probing is HIGH detectability — confirm authorization. Container image pulls generate logs — note detectability.
+
+**Chain to:** Feed discovered cloud endpoints to `web-surface` for HTTP checks. Feed K8s findings to `analysis-and-reporting` for attack-path hints. For ASN/BGP lookups, use `recon-asset-discovery`.
 
 ---
 
@@ -125,48 +145,12 @@ jobs:
 
 ---
 
-## 4. ASN / BGP & Internet Measurement
-
-- [Hurricane Electric BGP Toolkit](https://bgp.he.net/), [RIPEstat](https://stat.ripe.net/), [BGPView](https://bgpview.io/), [PeeringDB](https://www.peeringdb.com/).
-
-**Bulk IP → ASN (fastest options):**
-```bash
-# Cymru bulk WHOIS (fastest; no key required)
-echo -e "begin\nverbose\n8.8.8.8\n1.1.1.1\nend" | nc whois.cymru.com 43
-
-# RIPEstat (free; ~1 req/sec polite)
-curl -sk "https://stat.ripe.net/data/network-info/data.json?resource=8.8.8.8" | jq '.data'
-
-# bgp.tools (free; light rate-limit)
-curl -sk -A "osint-recon/1.0 (contact@example.com)" "https://bgp.tools/api/ip/8.8.8.8" | jq .
-```
-
-**Note:** `bgpview.io` API has aggressive rate limits (~1 req/min/IP); not suitable for bulk. Use Cymru for >50 IPs.
-
----
-
-## 5. Certificates & CT Monitoring
-
-- [crt.sh](https://crt.sh/), [Censys Certificates](https://search.censys.io/certificates), [CertStream](https://certstream.calidog.io/) (real-time CT WebSocket), [Cert Spotter](https://sslmate.com/certspotter).
-
-**Favicon mmh3 hash pivot:**
-```bash
-python3 -c "
-import urllib.request, codecs, mmh3
-data = urllib.request.urlopen('https://target.example/favicon.ico').read()
-print(mmh3.hash(codecs.encode(data, 'base64')))"
-shodan search "http.favicon.hash:<hash>" --fields ip_str,port,org
-```
-
----
-
-## 6. TLS Deep Audit
+## 4. TLS Deep Audit
 
 Beyond cert SAN + JARM — inspect cipher suites, protocols, and config quality.
 
 ```bash
-# sslyze (most thorough)
-pip install sslyze
+# sslyze (most thorough — install: see docs/reference/tooling-install.md)
 sslyze --regular target.example:443
 sslyze --json_out=tls.json target.example:443
 
@@ -200,37 +184,16 @@ nmap --script ssl-enum-ciphers,ssl-cert -p 443 target.example
 
 ---
 
-## 7. Reverse DNS Sweep & IPv6 Enumeration
+## 5. Favicon mmh3 Hash Pivot
 
 ```bash
-# Single /24
-for i in $(seq 1 254); do
-  IP="203.0.113.$i"
-  PTR=$(dig +short -x $IP)
-  [ -n "$PTR" ] && echo "$IP -> $PTR"
-done
-
-# Larger range with parallelism
-prips 203.0.113.0/22 | xargs -I {} -P 50 sh -c 'PTR=$(dig +short -x {}); [ -n "$PTR" ] && echo "{} -> $PTR"'
-
-# zdns (faster for large ranges)
-prips 203.0.113.0/22 | zdns PTR
-
-# masscan + banner-grab
-sudo masscan -p80,443 203.0.113.0/22 --rate=1000 --banners -oX masscan.xml
+python3 -c "
+import urllib.request, codecs, mmh3
+data = urllib.request.urlopen('https://target.example/favicon.ico').read()
+print(mmh3.hash(codecs.encode(data, 'base64')))"
+shodan search "http.favicon.hash:<hash>" --fields ip_str,port,org
 ```
 
-**IPv6 enumeration:**
-```bash
-# AAAA records for every discovered subdomain
-for sub in $(cat all-subs.txt); do
-  AAAA=$(dig +short AAAA $sub)
-  [ -n "$AAAA" ] && echo "$sub -> $AAAA"
-done
-# IPv6 brute-force is infeasible (2^64 host bits); instead: extract prefixes from ASN allocation
-whois -h whois.cymru.com " -v target.example.com"
-```
+---
 
-**BGP route observation:**
-- [RouteViews](http://archive.routeviews.org/) — historical BGP routing table snapshots.
-- [RIPE RIS](https://ris.ripe.net/) — route collectors.
+> **Note:** For ASN/BGP and internet measurement, see `recon-asset-discovery`. For reverse DNS sweep and IPv6 enumeration scripts, see `docs/methods/active-sweep-scripts.md`.

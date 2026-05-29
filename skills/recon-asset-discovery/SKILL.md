@@ -1,23 +1,17 @@
 ---
 name: recon-asset-discovery
-description: "Subdomain enumeration, ASN/BGP pivots, CT logs, DNS record catalog, WHOIS/RDAP, geospatial, and regional search engines for authorized external recon."
+description: "Subdomain enumeration, CT logs, DNS record catalog, WHOIS/RDAP, and passive reconnaissance for authorized external recon."
 version: 1.0.0
 triggers:
   - subdomain enumeration
   - asset discovery
   - certificate transparency
   - crt.sh
-  - ASN lookup
-  - BGP pivot
   - WHOIS lookup
   - RDAP
   - DNS record catalog
   - passive recon
   - footprinting
-  - geospatial intelligence
-  - regional search engines
-  - company information
-  - public records
 ---
 
 # Recon — Asset Discovery
@@ -27,56 +21,29 @@ triggers:
 
 ---
 
-## 1. General OSINT References
+## BEHAVIORAL CONTRACT
 
-- [OSINT Framework](https://osintframework.com/) — tool/resource directory.
-- [IntelTechniques Tools](https://inteltechniques.com/tools/) — investigative suite.
-- [Bellingcat Toolkit](https://www.bellingcat.com/resources/2024/09/24/bellingcat-online-investigations-toolkit/)
-- [CyberSudo OSINT Toolkit](https://docs.google.com/spreadsheets/d/1EC0sKA_W9znzsxUt0wye9UYtyATXw5m8) — OSINT websites list.
-- [Distributed Denial of Secrets](https://ddosecrets.com/) — leaked datasets.
-- [Country-Specific Resources](https://digitaldigging.org/osint/) — country-targeted OSINT.
+**When triggered:** Subdomain enumeration, asset discovery, DNS records, CT logs, WHOIS/RDAP, or passive reconnaissance is needed.
 
----
+**Execute:**
+1. Run the passive subdomain-source stack (§1) in parallel across all listed sources. If crt.sh is down, follow the fallback chain.
+2. Complement passive results with common-prefix candidates from the prefix wordlist (§2).
+3. Run WHOIS/RDAP (§3) on the root domain. Extract registrant org/email for pivoting.
+4. Catalog DNS records (§4) for every discovered domain/subdomain. Parse TXT records for SaaS tenancy inference using the verification token table.
+5. Check autodiscover for M365 confirmation (§4).
+6. Deduplicate all discovered assets by typed key. Tag each with confidence level per `osint-methodology` §2.
 
-## 2. Search Engines
+**Output:** Asset list with typed keys (subdomain, ip, domain) per `osint-methodology` §8 taxonomy.
 
-| Tool | Notes |
-|------|-------|
-| [Carrot2](https://search.carrot2.org/#/search/web) | Clusters results by topic |
-| [etools](https://www.etools.ch/) | Metasearch |
-| [Kagi](https://kagi.com/) | Privacy-first, non-personalized |
-| [Brave Search](https://search.brave.com/) | Independent index; Goggles for custom ranking |
-| [PDF Search](https://www.pdfsearch.io/) | PDF + table of contents |
+**Severity rules:** DNS AXFR success = CRITICAL. Missing CAA = LOW.
 
----
+**Gating rules:** Passive first. Active prefix sweep only when authorized. Brute-force (puredns) only with explicit operator approval.
 
-## 3. Public Records & Company Information
-
-- [OpenCorporates](https://opencorporates.com/) — world's largest open company DB.
-- [SEC EDGAR](https://www.sec.gov/edgar.shtml) — U.S. company filings.
-- [OpenOwnership Register](https://register.openownership.org/) — beneficial ownership.
-- [MuckRock](https://www.muckrock.com/) — FOIA repository + request tracking.
-- [UK Companies House](https://find-and-update.company-information.service.gov.uk/)
-
-### 3.1 RU Registries
-
-[Rusprofile](https://www.rusprofile.ru/), [Kontur.Focus](https://focus.kontur.ru/) (freemium), [zakupki.gov.ru](https://zakupki.gov.ru/) (procurement).
-
-### 3.2 CN Registries + USCC + ICP
-
-- **GSXT** — [gsxt.gov.cn](https://www.gsxt.gov.cn/) National Enterprise Credit Info; cross-check with Tianyancha / Qichacha.
-- **USCC** — 18-character entity ID. Workflow: `target.cn` domain → ICP lookup → USCC → GSXT → entity name + officers.
-- **ICP Beian** — [beian.miit.gov.cn](https://beian.miit.gov.cn/) — every domain serving mainland CN traffic must register.
-
-### 3.3 Sanctions & Compliance
-
-- [OFAC SDN List](https://sanctionssearch.ofac.treas.gov/), [EU Sanctions Map](https://www.sanctionsmap.eu/).
-- [OpenSanctions](https://www.opensanctions.org/) — aggregated.
-- [OCCRP Aleph](https://aleph.occrp.org/) — investigative documents, leaks, company records.
+**Chain to:** Feed discovered subdomains to `web-surface` for probing. Feed discovered emails to `people-breach-intel` for breach lookup. Feed discovered IPs to `cloud-and-infra` for infrastructure analysis.
 
 ---
 
-## 4. Subdomain-Source Stack (Passive)
+## 1. Subdomain-Source Stack (Passive)
 
 | Source | Tier | Notes |
 |---|---|---|
@@ -98,7 +65,7 @@ Most NSs reject; those that don't = full zone disclosure (CRITICAL).
 
 **Brute-force tier:** puredns against [assetnote.io](https://wordlists.assetnote.io/) wordlists.
 
-### 4.1 crt.sh Down? Fallback Chain
+### 1.1 crt.sh Down? Fallback Chain
 
 ```bash
 D="target.example"
@@ -122,74 +89,23 @@ curl -sk "https://urlscan.io/api/v1/search/?q=domain:${D}" | \
   jq -r '.results[].page.domain' | sort -u
 ```
 
-### 4.2 Common-Prefix Active Sweep
+---
 
-Passive enum misses 20–40% of high-value subdomains. Always pair with active prefix probe (detectability: low — single A-record query per host).
+## 2. Common-Prefix Wordlist
 
-```bash
-D="target.example"
-for p in www mail webmail owa autodiscover ftp vpn sslvpn gateway api app portal login sso idp iam identity accounts oauth auth adfs admin intranet hr sap erp crm support help status grafana kibana docs wiki jira jenkins gitlab dev test staging stg qa uat sandbox preprod preview careers jobs eapps old legacy beta tender suppliers procurement; do
-  IP=$(dig +short A "$p.$D" | head -1)
-  [ -n "$IP" ] && echo "$p.$D -> $IP"
-done
+Passive enum misses 20–40% of high-value subdomains. Pair with active prefix probe when authorized (detectability: low — single A-record query per host).
+
 ```
-
-PowerShell equivalent:
-```powershell
-$D = "target.example"
-$prefixes = @("www","mail","webmail","owa","autodiscover","ftp","vpn","sslvpn","gateway","api","app","portal","login","sso","idp","iam","identity","accounts","oauth","auth","adfs","admin","intranet","hr","sap","erp","crm","support","help","status","grafana","kibana","docs","wiki","jira","jenkins","gitlab","dev","test","staging","stg","qa","uat","sandbox","preprod","preview","careers","jobs","eapps","old","legacy","beta","tender","suppliers","procurement")
-foreach ($p in $prefixes) {
-  $r = Resolve-DnsName "$p.$D" -Type A -ErrorAction SilentlyContinue
-  if ($r) { $ips = ($r | ? {$_.IPAddress}).IPAddress -join ","; "$p.$D -> $ips" }
-}
+www mail webmail owa autodiscover ftp vpn sslvpn gateway api app portal
+login sso idp iam identity accounts oauth auth adfs admin intranet hr
+sap erp crm support help status grafana kibana docs wiki jira jenkins
+gitlab dev test staging stg qa uat sandbox preprod preview careers jobs
+eapps old legacy beta tender suppliers procurement
 ```
-
-**Wordlist sources:**
-
-| Source | URL |
-|---|---|
-| **Assetnote** | `https://wordlists.assetnote.io/` — best-curated; per-CMS/framework |
-| **SecLists** | `https://github.com/danielmiessler/SecLists` — `Discovery/DNS/subdomains-top1million-110000.txt` |
-| **jhaddix all.txt** | `https://gist.github.com/jhaddix/86a06c5dc309d08580a018c66354a056` |
 
 ---
 
-## 5. Infrastructure & Attack-Surface OSINT
-
-- [Shodan](https://www.shodan.io/), [Censys](https://search.censys.io/) — internet device + cert search.
-- [GreyNoise](https://viz.greynoise.io/) — distinguish background noise from targeted scans.
-- [SecurityTrails](https://securitytrails.com/) — passive DNS + asset discovery.
-- [SpiderFoot](https://www.spiderfoot.net/) — automated recon + correlation.
-- [BuiltWith](https://builtwith.com/) — tech stack enumeration.
-- [Netlas](https://netlas.io/), [BinaryEdge](https://www.binaryedge.io/), [FOFA](https://fofa.so/), [ZoomEye](https://www.zoomeye.org/).
-- [RiskIQ PassiveTotal](https://community.riskiq.com/) — passive DNS/cert/host pivots.
-
-### 5.1 ASN/BGP & Internet Measurement
-
-- [Hurricane Electric BGP Toolkit](https://bgp.he.net/), [RIPEstat](https://stat.ripe.net/), [BGPView](https://bgpview.io/), [PeeringDB](https://www.peeringdb.com/).
-
-**Bulk IP → ASN recipes:**
-```bash
-# Cymru bulk WHOIS (fastest; no rate-limit; no key)
-echo -e "begin\nverbose\n8.8.8.8\n1.1.1.1\nend" | nc whois.cymru.com 43
-
-# RIPEstat (free; ~1 req/sec polite)
-curl -sk "https://stat.ripe.net/data/network-info/data.json?resource=8.8.8.8" | jq '.data'
-
-# bgp.tools (free; light rate-limit)
-curl -sk -A "osint-recon/1.0 (contact@example.com)" "https://bgp.tools/api/ip/8.8.8.8" | jq .
-```
-
-**Note:** `bgpview.io` API has aggressive undocumented rate limits (~1 req/min/IP); not suitable for bulk.
-
-### 5.2 Certificates & CT Monitoring
-
-- [crt.sh](https://crt.sh/), [Censys Certificates](https://search.censys.io/certificates), [CertStream](https://certstream.calidog.io/) (real-time CT WebSocket), [Cert Spotter](https://sslmate.com/certspotter).
-- **Favicon mmh3 hash:** cluster infrastructure; pair with Shodan/Censys favicon search for shared-infra discovery.
-
----
-
-## 6. WHOIS / RDAP / Historical
+## 3. WHOIS / RDAP
 
 ```bash
 whois target.example
@@ -198,23 +114,9 @@ curl -sk "https://rdap.org/domain/${D}" | jq .
 
 What to extract: registrant org/email, registrar (pivot for related domains), created/updated dates (bulk registration patterns), nameservers (NS reuse pivot), status flags.
 
-**Historical WHOIS sources:**
-| Source | Notes |
-|---|---|
-| [DomainTools](https://domaintools.com/) | Paid; gold-standard; full WHOIS history |
-| [SecurityTrails](https://securitytrails.com/) | Paid; WHOIS + DNS history |
-| [viewdns.info](https://viewdns.info/) | Free (limited) |
-
-**Reverse-WHOIS:** given a registrant email, find all domains they registered:
-```bash
-# DomainTools (paid)
-curl -sk -H "X-API-Username: ..." -H "X-API-Key: ..." \
-  "https://api.domaintools.com/v1/reverse-whois/?terms=admin@target.example"
-```
-
 ---
 
-## 7. DNS Record Catalog
+## 4. DNS Record Catalog
 
 ```bash
 D="target.example"
@@ -254,33 +156,3 @@ If IP lands in `40.96.0.0/13`, `52.96.0.0/14`, `13.107.0.0/16` → `M365_CONFIRM
 dig +short CAA "${D}"
 ```
 Absence = LOW (any CA can mis-issue). Presence + restrictive list = good posture.
-
----
-
-## 8. Geospatial Intelligence
-
-### 8.1 Satellite & Mapping
-
-- [Google Maps](https://www.google.com/maps), [Bing Maps](https://www.bing.com/maps/).
-- [Sentinel Hub EO Browser](https://apps.sentinel-hub.com/eo-browser/), [NASA Worldview](https://worldview.earthdata.nasa.gov/).
-- [Wayback Imagery (ArcGIS)](https://livingatlas.arcgis.com/wayback/) — historical satellite.
-
-### 8.2 Geolocation Tools
-
-- [Mapillary](https://www.mapillary.com/app), [KartaView](https://kartaview.org/), [Overpass Turbo](https://overpass-turbo.eu/), [SunCalc](https://www.suncalc.org/).
-
-### 8.3 Flight OSINT
-
-- [FlightRadar24](https://www.flightradar24.com/), [ADSBExchange](https://www.adsbexchange.com/) (unfiltered).
-
-### 8.4 Maritime OSINT
-
-- [MarineTraffic](https://www.marinetraffic.com/), [VesselFinder](https://www.vesselfinder.com/).
-- [Global Fishing Watch](https://globalfishingwatch.org/map/) — vessel behavior + AIS gap analysis.
-
----
-
-## 9. Regional Search Engines
-
-- **Russia / CIS:** [Yandex](https://yandex.com/), [Mail.ru Search](https://go.mail.ru/), [VK](https://vk.com/), [OK.ru](https://ok.ru/).
-- **China:** [Baidu](https://www.baidu.com/), [Sogou](https://www.sogou.com/), [360 Search](https://www.so.com/), [Weibo](https://weibo.com/), [Zhihu](https://www.zhihu.com/).
