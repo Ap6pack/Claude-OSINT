@@ -134,3 +134,38 @@ site:airtable.com "{target}"
 
 ---
 
+## Vulnerability Prioritization Workflow
+
+```bash
+# 1. Get EPSS score for a CVE
+curl -sk "https://api.first.org/data/v1/epss?cve=CVE-2024-3400" | jq '.data[0]'
+
+# 2. Check if in CISA KEV
+curl -sk https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json | \
+  jq '.vulnerabilities[] | select(.cveID == "CVE-2024-3400")'
+
+# 3. Check ExploitDB
+searchsploit cve 2024-3400
+
+# 4. Check Metasploit
+msfconsole -q -x "search cve:2024-3400; exit"
+```
+
+**Bulk prioritization** (given a Nuclei scan output with N CVEs):
+
+```bash
+# Extract CVEs from nuclei JSON output
+jq -r '.info.classification.["cve-id"][]?' nuclei-results.json | sort -u > cves.txt
+
+# Annotate each with EPSS + KEV
+while IFS= read -r CVE; do
+  EPSS=$(curl -sk "https://api.first.org/data/v1/epss?cve=$CVE" | jq -r '.data[0].epss // "N/A"')
+  KEV=$(curl -sk https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json | \
+    jq --arg c "$CVE" '.vulnerabilities[] | select(.cveID == $c) | .vulnerabilityName // empty')
+  KEV_FLAG=$([ -n "$KEV" ] && echo "KEV" || echo "")
+  echo "$CVE | EPSS:$EPSS | $KEV_FLAG"
+done < cves.txt | sort -t: -k2 -nr
+```
+
+---
+

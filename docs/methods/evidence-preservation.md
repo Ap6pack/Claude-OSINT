@@ -11,6 +11,9 @@
 - [URLScan.io](https://urlscan.io/) — webpage scan + resource map.
 - [ArchiveBox](https://archivebox.io/) — self-hosted (HTML, PDF, screenshots).
 - Wayback SavePageNow API v3 — on-demand archiving with job IDs.
+- [Hunchly](https://www.hunch.ly/) — investigator evidence capture (paid).
+- [Kasm Workspaces](https://kasmweb.com/) — containerized OSINT browser isolation.
+- [SingleFileZ](https://github.com/gildas-lormeau/SingleFileZ) — browser ext for offline HTML.
 
 ---
 

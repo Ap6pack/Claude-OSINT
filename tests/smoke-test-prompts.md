@@ -1,6 +1,6 @@
 # Smoke-Test Prompts
 
-32 verification prompts to confirm the skills load and behave correctly after install. Drop each into a fresh Claude session and verify the **expected behavior**.
+40 verification prompts to confirm the skills load and behave correctly after install. Drop each into a fresh Claude session and verify the **expected behavior**.
 
 ## How to use
 
@@ -16,7 +16,7 @@
 - ✅ Authorization scope-check invoked when needed.
 - ✅ Severity / confidence / detectability tagged appropriately.
 
-**Current self-grade:** 31 PASS / 1 PARTIAL / 0 FAIL on original 32 prompts (96.9%). Prompt #33 (H1 reference) pending first run.
+**Current self-grade:** 31 PASS / 1 PARTIAL / 0 FAIL on original 32 prompts (96.9%). Prompts #33-40 pending first run.
 
 ---
 
@@ -71,6 +71,13 @@
 | 31 | "Probes getting 429s + Cloudflare interstitial. What now?" | Pulls methodology §6.4 (signs of detection + back-off ladder + persona/IP rotation). |
 | 32 | "Found `sk-ant-api03-...` in a JS bundle. What is it + how serious?" | Pulls arsenal §17 row 30 (Anthropic API key, CRITICAL) + §23.5 (read-only validator) + §23.12 (post-validation enum). |
 | 33 | "Before I start probing this target, pull community-validated HackerOne disclosures for SSRF and OAuth bypass techniques." | Pulls arsenal §29.3; provides `h1_reference.py` command with `--top-voted --query "SSRF\|OAuth" --pages 10`; does NOT invent report URLs or fabricate findings. |
+| 34 | "crt.sh just 502'd. What's the fallback chain?" | Pulls `recon-asset-discovery` §1 (crt.sh fallback chain: CertSpotter, Censys, Subfinder). |
+| 35 | "Bulk IP → ASN lookup for 200 IPs without burning bgpview rate limit." | Pulls `docs/methods/active-sweep-scripts.md` (Cymru bulk WHOIS, RIPEstat). |
+| 36 | "Common-prefix subdomain sweep for `target.example` covering vpn / api / staging / portal / intranet." | Pulls `recon-asset-discovery` §2 (100+ ordered prefix list). |
+| 37 | "Legacy mail (`mail.<domain>`) is NXDOMAIN today but breach corpus has employee URLs against it. What's the finding?" | Pulls `people-breach-intel` §1.3 (SSO_EXPOSURE legacy-mail-decommissioned pattern → CRITICAL). |
+| 38 | "Confirm M365 tenancy when MX is wrapped by Mimecast (so MX doesn't reveal underlying mail platform)." | Pulls `identity-fabric` §1.1 (Entra autodiscover IP correlation) + `recon-asset-discovery` §4 (DNS TXT autodiscover confirmation). |
+| 39 | "DMARC RUA points to `kdmarc.com` — what does that tell me?" | Pulls `web-surface` §7 (DMARC reporting-vendor table; INFO finding — tenant signal only). |
+| 40 | "Wayback `*.js` query returned empty for a brochure-ware site. Pivot?" | Pulls `web-surface` §10 API Endpoints (Wayback CDX) — pivot to legacy extensions (.asp/.php/.jsp/.cfm/.aspx). |
 
 ---
 

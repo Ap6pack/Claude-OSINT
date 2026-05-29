@@ -72,31 +72,78 @@
 ## Threat Intel & IOCs
 
 - CERT advisories: CISA/NSA/CSA, CERT-EU, NCSC-UK, JPCERT/CC, CERT-UA.
-- [MISP Project](https://www.misp-project.org/) and public MISP feeds.
+- [OpenCTI](https://www.opencti.io/) — CTI knowledge graph.
+- [Malpedia](https://malpedia.caad.fkie.fraunhofer.de/) — malware families, YARA, references.
+- [MISP Project](https://www.misp-project.org/) — threat sharing platform; public MISP feeds.
 - [ThreatFox](https://threatfox.abuse.ch/), [URLHaus](https://urlhaus.abuse.ch/), [SSLBL](https://sslbl.abuse.ch/).
-- [MalwareBazaar](https://bazaar.abuse.ch/), [PhishTank](https://www.phishtank.com/).
+- [MalwareBazaar](https://bazaar.abuse.ch/) — hash-based sample sharing.
+- [PhishTank](https://www.phishtank.com/), [OpenPhish](https://openphish.com/).
 
-### Vulnerability Prioritization Sources
+### Malware Analysis & Sandboxes
 
-| Source | What it tells you |
-|---|---|
-| [NVD](https://nvd.nist.gov/vuln/search) | Base CVE catalog with CVSS v2/v3 |
-| [EPSS](https://www.first.org/epss/) | 0.0–1.0 probability of exploit in next 30 days |
-| [CISA KEV](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json) | CVEs proven exploited in the wild |
-| [ExploitDB](https://www.exploit-db.com/) / `searchsploit` | POC code presence |
-| [Trickest CVE](https://github.com/trickest/cve) | Auto-generated CVE → public POC repo links |
-| [OSV.dev](https://osv.dev/) | Open-source vulnerability DB; JSON API |
+- Static: [pefile](https://github.com/erocarrera/pefile), [FLOSS](https://github.com/mandiant/flare-floss), [capa](https://github.com/mandiant/capa).
+- Similarity: SSDEEP, TLSH.
+- Sandboxes: [ANY.RUN](https://any.run/), [Hybrid Analysis](https://www.hybrid-analysis.com/), [CAPE](https://capesandbox.com/), [Tria.ge](https://tria.ge/).
+- Intelligence: [Intezer](https://analyze.intezer.com/) (code reuse), [VirusTotal](https://www.virustotal.com/) — **caution: uploads become public**.
+- TLS: [JA3](https://github.com/salesforce/ja3), [JA4](https://github.com/FingerprinTLS/ja4).
+
+### Vulnerability Prioritization Data Sources
+
+| Source | URL | What it tells you |
+|---|---|---|
+| **NVD** | `https://nvd.nist.gov/vuln/search` (or API `services.nvd.nist.gov/rest/json/cves/2.0`) | Base CVE catalog with CVSS v2/v3 scores. |
+| **EPSS** | `https://www.first.org/epss/` (CSV at `https://epss.cyentia.com/epss_scores-current.csv.gz`) | 0.0-1.0 probability of exploit in next 30 days. Updated daily. |
+| **CISA KEV** | `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json` | CVEs proven exploited in the wild + federal-agency due-by dates. |
+| **ExploitDB** | `https://www.exploit-db.com/`; offline DB via `searchsploit` | POC code presence (Metasploit, Python, shell). |
+| **Metasploit module catalog** | `https://www.rapid7.com/db/modules/` (or `msfconsole > search cve:CVE-2024-XXXX`) | Automation availability. |
+| **InTheWild.io** | `https://inthewild.io/` | Community-curated "actively exploited" tracker. |
+| **OpenCVE** | `https://www.opencve.io/` | Timeline + watchlist + alerts. |
+| **Trickest CVE → POC mapping** | `https://github.com/trickest/cve` | Auto-generated CVE → public POC repo links. |
+| **GitHub Security Advisories** | `https://github.com/advisories` | Per-language / per-ecosystem advisories. |
+| **MITRE CVE List** | `https://cve.mitre.org/cve/` | Official CVE registry. |
+| **VulnDB** | `https://vulndb.cyberriskanalytics.com/` | Paid; commercial enrichment. |
+| **OSV.dev** | `https://osv.dev/` | Open-source vulnerability DB; JSON API. |
+| **Vulncheck KEV** | `https://vulncheck.com/kev` | Expanded KEV feed (more than CISA). |
+| **Tenable Research** | `https://www.tenable.com/research` | Tenable's CVE detail enrichment. |
+| **Qualys ThreatPROTECT** | `https://threatprotect.qualys.com/` | Qualys' threat-context enrichment. |
 
 ---
 
 ## Cryptocurrency OSINT
 
 - [Blockchain.com](https://www.blockchain.com/explorer), [Etherscan](https://etherscan.io/), [Solscan](https://solscan.io/).
+- [Blockchair](https://blockchair.com/) — multi-chain block explorer.
+- [BSCScan](https://bscscan.com/) — BNB Chain explorer.
+- [OKLink](https://www.oklink.com/) — multi-chain (freemium).
 - [Arkham](https://www.arkhamintelligence.com/) — multichain, entity labels, graphs.
 - [MetaSleuth](https://metasleuth.io/) — visual flow.
 - [Breadcrumbs](https://www.breadcrumbs.app/) — visual graphing + labels (freemium).
 - [Chainalysis](https://www.chainalysis.com/) / [Crystal Blockchain](https://crystalblockchain.com/) — pro analytics.
-- [L2Beat](https://l2beat.com/) — risk framework + TVL for L2s.
+- [Bubblemaps](https://bubblemaps.io/) — holder concentration.
+- [Whale Alert](https://whale-alert.io/) — large transaction monitoring.
+- [GraphSense](https://graphsense.info/) — open-source crypto analytics.
+- [Nansen](https://www.nansen.ai/) — Smart Money labels (paid).
+- [Dune](https://dune.com/) — custom queries.
+- [Token Sniffer](https://tokensniffer.com/) — honeypot/scam detection.
+
+### L2 / Rollup Explorers
+
+| L2 | Explorer | Notes |
+|---|---|---|
+| Arbitrum | [Arbiscan](https://arbiscan.io/) | Optimistic rollup; 7-day challenge window. |
+| Optimism | [Optimistic Etherscan](https://optimistic.etherscan.io/) | Optimistic rollup; 7-day challenge window. |
+| Base | [BaseScan](https://basescan.org/) | OP Stack. |
+| Blast | [Blastscan](https://blastscan.io/) | OP Stack derivative. |
+| Scroll | [Scrollscan](https://scrollscan.com/) | zkEVM. |
+| zkSync Era | [zkSync Era Block Explorer](https://explorer.zksync.io/) | zkRollup; faster finality. |
+| Polygon zkEVM | [PolygonScan zkEVM](https://zkevm.polygonscan.com/) | zkEVM. |
+| StarkNet | [Voyager](https://voyager.online/), [StarkScan](https://starkscan.co/) | Cairo VM; different address derivation. |
+| Cross-L2 | [L2Beat](https://l2beat.com/) | Risk framework + TVL comparison. |
+
+### NFT / Exchange / Bridges
+
+- [OpenSea](https://opensea.io/), [NFTScan](https://www.nftscan.com/), [DappRadar](https://dappradar.com/), [CoinGecko](https://www.coingecko.com/), [CoinMarketCap](https://coinmarketcap.com/), [Glassnode](https://glassnode.com/).
+- Bridges: [Socketscan](https://socketscan.io/), [L2Beat Bridges](https://l2beat.com/bridges), [Pulsy](https://pulsy.io/).
 
 ---
 
@@ -104,8 +151,22 @@
 
 - [TGStat](https://tgstat.com/) — channel analytics + search.
 - [Telemetr](https://telemetr.io/) — channel growth, overlaps, forwards.
+- [Combot](https://combot.org/) — group analytics (partial paid).
+- [TelegramDB Search Bot](https://t.me/TGdb_bot) — basic Telegram OSINT.
+- [Discord ID](https://discord.id/) — basic Discord account info.
+- [Sogou Weixin search](https://weixin.sogou.com/) — WeChat Official Accounts.
 - View public Telegram channels: `https://t.me/s/<channel>`.
 - Google: `site:t.me "{target}"`.
+
+---
+
+## Workspace Discovery (Slack / Discord)
+
+### Public Slack Directories
+- [Slofile](https://slofile.com/), [Slacklist](https://slacklist.info/) — public Slack workspace directories.
+
+### Discord Server Directories
+- [DiscordServers.com](https://discordservers.com/), [Discord.me](https://discord.me/), [Top.gg](https://top.gg/) — Discord server directories.
 
 ---
 
@@ -140,7 +201,15 @@
 
 **OSINT beyond satellites:** LinkedIn employee photos (badge templates visible), Glassdoor office tour photos, Instagram geotagged photos at office address, press release "ribbon cutting" photos.
 
-**Discipline:** document imagery is public-source; note imagery date (buildings change).
+### Vehicle / Fleet Intel
+- License plates in LinkedIn/Instagram backgrounds — sometimes correlates to specific exec.
+- Company-branded vehicles in sat imagery — fleet count + location.
+- Helicopter pad / executive parking — clue to senior-leadership routine.
+
+### Physical Recon Discipline
+- Document that imagery + photos are public-source.
+- Don't trespass for "verification" — physical recon during OSINT phase = look only.
+- Note imagery date — buildings change.
 
 ---
 
@@ -180,6 +249,9 @@
 | [Netlas](https://netlas.io/) | netlas.io | Attack surface search |
 | [BinaryEdge](https://www.binaryedge.io/) | binaryedge.io | Internet scan |
 | [ZoomEye](https://www.zoomeye.org/) | zoomeye.org | Chinese search engine for devices |
+| [Wappalyzer](https://www.wappalyzer.com/) | wappalyzer.com | Web technology fingerprinting |
+| [Hurricane Electric BGP Toolkit](https://bgp.he.net/) | bgp.he.net | ASN/BGP lookup |
+| [PeeringDB](https://www.peeringdb.com/) | peeringdb.com | Peering/IX data |
 
 ---
 
@@ -206,6 +278,9 @@ https://reverse-whois-api.domaintools.com/v1?terms={"registrant_org":"Acme%20Cor
 - [Sentinel Hub EO Browser](https://apps.sentinel-hub.com/) — Free Sentinel-2 (10m); change detection.
 - [NASA Worldview](https://worldview.earthdata.nasa.gov/) — near-real-time satellite.
 - [Wayback ArcGIS](https://livingatlas.arcgis.com/wayback/) — historical satellite.
+- [Zoom Earth](https://zoom.earth/) — near-real-time weather + satellite imagery.
+- [Open Infrastructure Map](https://openinframap.org/) — global power/telecom/pipeline infrastructure overlay.
+- [Maxar](https://www.maxar.com/) / [Planet Labs](https://www.planet.com/) — commercial high-res imagery (paid).
 
 ### Geolocation Tools
 - [Mapillary](https://www.mapillary.com/) — crowd-sourced street imagery.
@@ -215,6 +290,9 @@ https://reverse-whois-api.domaintools.com/v1?terms={"registrant_org":"Acme%20Cor
 
 ### Flight OSINT
 - [FlightRadar24](https://www.flightradar24.com/), [ADSBExchange](https://globe.adsbexchange.com/) — unfiltered.
+- [FlightAware](https://www.flightaware.com/) — flight tracking + historical data.
+- [Planespotters](https://www.planespotters.net/) — fleet/airframe history.
+- [AirFrames](https://www.airframes.org/), [JetPhotos](https://www.jetphotos.com/) — aircraft photo databases.
 
 ### Maritime OSINT
 - [MarineTraffic](https://www.marinetraffic.com/), [VesselFinder](https://www.vesselfinder.com/), [Global Fishing Watch](https://globalfishingwatch.org/).
@@ -228,6 +306,7 @@ https://reverse-whois-api.domaintools.com/v1?terms={"registrant_org":"Acme%20Cor
 
 ### China
 - Baidu (baidu.com), Sogou (sogou.com), 360 Search (so.com), Weibo (weibo.com), Zhihu (zhihu.com).
+- [Douyin](https://www.douyin.com/) — Chinese TikTok (short video platform).
 
 ---
 
@@ -261,6 +340,53 @@ https://reverse-whois-api.domaintools.com/v1?terms={"registrant_org":"Acme%20Cor
 
 - [theHarvester](https://github.com/laramies/theHarvester) — email + subdomain harvester.
 - [CrossLinked](https://github.com/m8sec/CrossLinked) — LinkedIn scraper → employee list.
+
+---
+
+## Video Analysis
+
+- [YouTube Data Viewer](https://citizenevidence.amnestyusa.org/) (Amnesty International), [InVID & WeVerify](https://www.invid-project.eu/tools-and-services/invid-verification-plugin/), [YouTube Geo Tag](https://mattw.io/youtube-geofind/location), [MediaInfo](https://mediaarea.net/en/MediaInfo), Snap Map.
+
+---
+
+## Image Forensics & Metadata
+
+- [Jimpl](https://jimpl.com/), [Jeffrey's EXIF Viewer](http://exif.regex.info/exif.cgi), [FOCA](https://www.elevenpaths.com/labstools/foca), [Metagoofil](https://www.edge-security.com/metagoofil.php), [C2PA Verify](https://verify.contentauthenticity.org/).
+
+---
+
+## Browser Extensions for Media OSINT
+
+- [Fake News Debunker (InVID & WeVerify)](https://chrome.google.com/webstore/detail/fake-news-debunker-by-inv/mhccpoafgdgbhnjfhkcmgknndkeenfhe)
+- [RevEye Reverse Image Search](https://chrome.google.com/webstore/detail/reveye-reverse-image-sear/kejaocbebojdmebagkjghljkeefgimdj)
+- [EXIF Viewer Pro](https://chrome.google.com/webstore/detail/exif-viewer-pro/mmbhfeiddhndihdjeganjggkmjapkffm)
+- [Wayback Machine Extension](https://chrome.google.com/webstore/detail/wayback-machine/fpnmgdkabkmnadcjpehmlllkndpkmiak)
+- [Search by Image](https://chromewebstore.google.com/detail/search-by-image/cnojnbdhbhnkbcieeekonklommdnndci)
+
+---
+
+## Commercial AI OSINT Platforms
+
+- [Cylect](https://www.cylect.io/) — entity extraction + link analysis.
+- [Fivecast Matrix](https://www.fivecast.com/products/matrix/) — generative-AI triage for social-media datasets.
+- [Recorded Future](https://www.recordedfuture.com/) — AI-driven threat intel.
+- [DarkOwl Vision](https://www.darkowl.com/) — darknet data analysis.
+
+---
+
+## Deepfake & Synthetic Media Detection
+
+- [Sensity AI](https://sensity.ai/), [Reality Defender](https://realitydefender.com/), [Adobe Content Credentials Verify](https://contentcredentials.org/verify), [CarNet](https://carnet.ai/).
+
+---
+
+## Automation & Workflow Tools
+
+- [n8n](https://n8n.io/) — self-hosted workflow automation (RSS → scrape → alert pipelines).
+- [Huginn](https://github.com/huginn/huginn) — agent-based monitoring/scraping/alerting.
+- [Playwright](https://playwright.dev/) — headless browser automation with stealth plugins.
+- [Browsertrix Crawler](https://github.com/webrecorder/browsertrix-crawler) — archival crawling with WARC export.
+- [Prefect](https://www.prefect.io/) / [Apache Airflow](https://airflow.apache.org/) — workflow orchestration.
 
 ---
 

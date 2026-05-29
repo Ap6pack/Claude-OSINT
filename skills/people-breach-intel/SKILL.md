@@ -181,6 +181,12 @@ curl -sk "https://discord.com/api/v9/invites/<token>?with_counts=true"
 ```
 Returns server name, ID, member count.
 
+**Mattermost / Rocket.Chat / self-hosted:**
+- Look for `chat.<domain>`, `mattermost.<domain>`, `rocket.<domain>` subdomains.
+- Mattermost: `GET /api/v4/config/client?format=old` reveals server config if unauthenticated.
+- Rocket.Chat: `GET /api/v1/info` returns version + config.
+- Public channels may be readable without auth on misconfigured instances.
+
 ---
 
 ## 7. Package Registry Leak Hunting
@@ -200,7 +206,28 @@ curl -sk "https://pypi.org/pypi/<package>/json" | jq '.releases | keys'
 pip download <package>==<version> --no-deps -d /tmp/pkg
 ```
 
-### 7.3 Workflow
+### 7.3 RubyGems
+```bash
+# Per-gem metadata
+curl -sk "https://rubygems.org/api/v1/gems/<gem-name>.json" | jq .
+gem fetch <gem-name> && gem unpack <gem-name>-<version>.gem
+```
+
+### 7.4 Cargo (Rust crates)
+- Search: `https://crates.io/search?q=<target>`
+- Per-crate metadata: `https://crates.io/api/v1/crates/<crate-name>`
+
+### 7.5 Packagist (PHP / Composer)
+- Search: `https://packagist.org/search/?q=<target>`
+- Per-package metadata: `https://packagist.org/packages/<vendor>/<package>.json`
+
+### 7.6 NuGet (.NET)
+- Search: `https://www.nuget.org/packages?q=<target>`
+
+### 7.7 Maven Central (Java)
+- Search: `https://search.maven.org/?q=<target>`
+
+### 7.8 Workflow
 
 For each candidate package owned by target:
 1. List all historical versions (old versions often had leaked keys).
@@ -208,7 +235,7 @@ For each candidate package owned by target:
 3. Extract; run secret catalog.
 4. For Docker images: scan each layer with `dive` or `skopeo`.
 
-### 7.4 Typosquat Surveillance
+### 7.9 Typosquat Surveillance
 
 For every published package the target owns, generate typosquat candidates:
 ```bash

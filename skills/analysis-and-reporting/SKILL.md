@@ -100,7 +100,7 @@ Apps below threshold: tag `mobile_review_pending`. Operator can lower threshold 
 
 ---
 
-## 3. Attack-Path Hint Patterns — 27 Templates
+## 3. Attack-Path Hint Patterns — 35 Templates
 
 When emitting a HIGH/CRITICAL finding (score ≥ 70), include a one-sentence `attack_path_hint`:
 
@@ -133,6 +133,11 @@ When emitting a HIGH/CRITICAL finding (score ≥ 70), include a one-sentence `at
 | Public Slack invite link | *"Slack workspace invite link discoverable via search engine — anyone can join the workspace without approval."* |
 | Open Docker registry | *"Public Docker registry at {host} — `GET /v2/_catalog` lists images; pull and scan layers for embedded secrets."* |
 | Sourcemap with sourcesContent[] | *"Sourcemap on {host} includes embedded original sources — full frontend code reconstructable; grep for inline secrets and internal hostnames."* |
+| Verb tampering | *"Verb tampering: {hidden-method} allowed on documented-{visible-method}-only endpoint → likely missing-method-check authz bug."* |
+| Citrix unpatched | *"Citrix NetScaler version {ver} on {host} — vulnerable to CVE-{cve} (KEV-listed); do not exploit but flag for immediate patching."* |
+| F5 BIG-IP TMUI exposed | *"F5 BIG-IP TMUI on {host} reachable; CVE-2022-1388 / CVE-2023-46747 KEV applicable; advise immediate patching."* |
+| VMware vCenter accessible | *"vCenter at {host} accessible without VPN; CVE-2021-21972 RCE if unpatched; check version banner."* |
+| Telegram bot token live | *"Telegram bot token validated — `getUpdates` reveals bot recipients (admin chats); if `getMe` shows bot is in channels, full message read access."* |
 
 ---
 
@@ -183,11 +188,54 @@ When emitting a HIGH/CRITICAL finding (score ≥ 70), include a one-sentence `at
 | DMARC `p=none` on production | MEDIUM | Spoof feasible |
 | TLS 1.0/1.1 supported on prod | MEDIUM | PCI-DSS compliance gap |
 | Slack webhook URL leaked | MEDIUM | Send to channel; social-eng vector |
+| Live AWS IAM-user key found on GitHub | HIGH | Limited scope (depends on IAM policy); often elevatable |
+| Listable S3 bucket containing logs only | HIGH | Internal hostnames + paths in logs; pivot data |
+| Spring Boot `/actuator/heapdump` exposed | **CRITICAL** | Heap contains live secrets in string form |
+| Verb tampering: DELETE on documented-GET-only endpoint | HIGH | Authz bypass; potentially destructive |
+| Tomcat `/manager/html` reachable | HIGH | Often default creds; WAR upload = RCE |
+| Sensitive deep-link handler (`myapp://reset-password`) | HIGH | Other apps can trigger sensitive flows |
+| Live PyPI / Docker Hub / GHCR token with publish scope | **CRITICAL** | Supply-chain compromise |
+| Atlassian token with admin scope | HIGH | Workspace-wide read; sometimes write |
+| GitHub Actions secrets echoed in workflow logs | HIGH | Secret-in-log = full secret disclosure |
+| GitHub Actions `pull_request_target` checkout of fork code | HIGH | Secrets accessible to attacker PRs |
+| Public Trello board with credentials in cards | HIGH | Often plaintext API keys |
+| WAF/CDN trivially bypassable (origin discoverable) | HIGH | All WAF protections null |
+| VMware ESXi exposed without VPN | HIGH | Multiple CVEs (ESXiArgs ransomware vector) |
+| K8s dashboard exposed without auth | HIGH | Cluster admin UI |
+| Helm Tiller (Helm 2) on 44134 | HIGH | Cluster-admin scope |
+| AWS Lambda Function URL accessible anonymously | HIGH | Direct invocation; check IAM auth posture |
+| MX server allows open relay | HIGH | Spam + spoof feasibility |
+| Pulse Secure with CVE-2024-21887 | **CRITICAL** | KEV; chained command injection |
+| VMware vCenter with CVE-2021-21972 | **CRITICAL** | KEV; pre-auth RCE |
+| MS Exchange with ProxyShell/Logon/NotShell unpatched | **CRITICAL** | KEV chain; RCE + mailbox dump |
+| Vendor procurement portal exposed + breach hits | **HIGH** | Vendor impersonation + procurement fraud |
+| Job-application portal collects PII over plain HTTP | **HIGH** | Cleartext PII at scale; GDPR/CCPA exposure |
+| `android:usesCleartextTraffic=true` | MEDIUM | MITM-able on hostile networks |
+| Exported Android component without permission | MEDIUM | IPC attack surface |
 | `android:allowBackup=true` (no whitelist) | MEDIUM | App data exfil via `adb backup` |
+| Wildcard CORS on data-returning API | MEDIUM | Lower than reflected+creds but still exfil-able |
+| Twilio Account SID leaked (no auth token) | MEDIUM | Half a credential pair; account enumeration |
+| Public Docker registry (anonymous catalog) | MEDIUM | Image enum + secret hunt in layers |
+| Public Notion page with internal SOPs | MEDIUM | Operational intel; sometimes credentials |
+| Public Confluence space with onboarding docs | MEDIUM | Seed creds + tech-stack reveal |
+| SPF `~all` (softfail) without strict DMARC | MEDIUM | Spoofs land in spam, but land |
+| Sensitive CI/CD wordlist hits (Jenkinsfile on public repo) | MEDIUM | Build-script intel; secret names |
+| Public Postman workspace with internal API endpoints | MEDIUM | API attack surface mapped |
+| Self-signed cert on prod | MEDIUM | Trust failure for users |
+| RC4 / 3DES cipher accepted | MEDIUM | NOMORE / SWEET32 attacks |
+| Public Miro board with architecture diagrams | LOW | Internal-host disclosure |
+| Stripe **test** key leaked | LOW | No real money risk |
+| Firebase URL exposed (no open RTDB) | LOW | Project-ID disclosure only |
+| Cert pinning missing in mobile app | LOW | MITM possible on hostile networks |
+| Outdated WordPress install detected | LOW | Pending CVE confirmation |
 | Missing `X-Frame-Options` | LOW | Clickjacking |
 | `.DS_Store` exposed | LOW | Directory listing of dev's machine |
 | Cert about to expire (<30 days) | LOW | Operational risk |
 | `vpn.<domain>` resolves + vendor unknown | INFO | Escalate to HIGH-CRIT after KEV CVE match |
+| DMARC RUA → third-party reporting vendor | INFO | Tenant signal; vendor compromise = DMARC bypass |
+| Private bucket exists (HEAD 403) | INFO | Asset only, no finding |
+| Missing `Referrer-Policy` / `Permissions-Policy` | INFO | Hardening, not an exposure |
+| `/.well-known/security.txt` discovered | INFO | Useful contact info only |
 | Domain in breach with 0 named accounts | INFO | Contextual only |
 
 ---

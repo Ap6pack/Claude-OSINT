@@ -70,23 +70,32 @@ Most NSs reject; those that don't = full zone disclosure (CRITICAL).
 ```bash
 D="target.example"
 
-# 1. Censys cert search (free 250/month with key)
+# 1. Censys cert search (free 250 queries/month with key)
 censys search "names: ${D}" --index-type certificates --fields names | jq -r '.names[]' | sort -u
 
 # 2. Cert Spotter API (sslmate) — free w/ rate limits
 curl -sk "https://api.certspotter.com/v1/issuances?domain=${D}&include_subdomains=true&expand=dns_names" | \
   jq -r '.[].dns_names[]' | sort -u
 
-# 3. Subfinder bundled aggregator
+# 3. CertStream archive (Calidog)
+curl -sk "https://crt.calidog.io/?q=${D}" | jq -r '.[].name_value' | sort -u
+
+# 4. Subfinder bundled aggregator (30+ sources)
 subfinder -d ${D} -all -recursive -silent
 
-# 4. AlienVault OTX — free, no key
+# 5. AlienVault OTX — free, no key
 curl -sk "https://otx.alienvault.com/api/v1/indicators/domain/${D}/passive_dns" | \
   jq -r '.passive_dns[].hostname' | sort -u
 
-# 5. URLScan — passive DNS via past scans
+# 6. ThreatMiner
+curl -sk "https://api.threatminer.org/v2/domain.php?q=${D}&rt=5" | jq -r '.results[]'
+
+# 7. URLScan
 curl -sk "https://urlscan.io/api/v1/search/?q=domain:${D}" | \
   jq -r '.results[].page.domain' | sort -u
+
+# 8. Anubis-DB (last resort)
+curl -sk -A "Mozilla/5.0" "https://anubisdb.com/anubis/subdomains/${D}" | jq -r '.[]'
 ```
 
 ---
@@ -102,6 +111,27 @@ sap erp crm support help status grafana kibana docs wiki jira jenkins
 gitlab dev test staging stg qa uat sandbox preprod preview careers jobs
 eapps old legacy beta tender suppliers procurement
 ```
+
+### 2.1 Wordlist Sources
+
+| Source | URL | Notes |
+|---|---|---|
+| **Assetnote Wordlists** | `https://wordlists.assetnote.io/` | Best-curated; updated regularly |
+| **SecLists** | `https://github.com/danielmiessler/SecLists` | Subdomains: `Discovery/DNS/subdomains-top1million-110000.txt` |
+| **jhaddix all.txt** | `https://gist.github.com/jhaddix/86a06c5dc309d08580a018c66354a056` | Long-running curated |
+| **OneListForAll** | `https://github.com/six2dez/OneListForAll` | Aggregated; very large |
+| **raft-large-words.txt** | inside SecLists | Time-tested content wordlist |
+| **commonspeak2** | `https://github.com/assetnote/commonspeak2-wordlists` | Generated from BigQuery |
+| **fuzzdb** | `https://github.com/fuzzdb-project/fuzzdb` | Fuzzing payloads + wordlists |
+
+**Size guidance:**
+
+| Wordlist size | Speed class | Typical runtime | Use case |
+|---|---|---|---|
+| <10k entries | Fast | 1–2 min | Quick validation, CI/CD gates |
+| 10k–100k entries | Standard | 10–30 min | Standard engagement recon |
+| 100k–1M entries | Thorough | 1–4 hours | Full-scope pentest |
+| >1M entries | Exhaustive | Multi-day | Week-long engagements, red team ops |
 
 ---
 

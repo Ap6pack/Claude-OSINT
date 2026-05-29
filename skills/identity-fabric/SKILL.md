@@ -41,7 +41,7 @@ triggers:
 **When triggered:** SSO/IdP fingerprinting, tenant discovery, auth architecture mapping, Microsoft 365 enumeration, Okta/Entra/ADFS probing, OIDC discovery, LinkedIn employee enumeration, or device-code phishing feasibility assessment is needed.
 
 **Execute:**
-1. Probe OIDC discovery endpoints (§1.1-1.5) on every alive subdomain and known SSO prefixes (auth.*, login.*, sso.*, idp.*).
+1. Probe OIDC discovery endpoints (§1.1-1.5) on every alive subdomain and known SSO prefixes (auth.*, login.*, sso.*, idp.*, iam.*, identity.*, accounts.*, oauth.*). Probe `/.well-known/openid-configuration` on every alive subdomain regardless of prefix.
 2. Extract tenant GUIDs from OIDC metadata issuer fields.
 3. Run getuserrealm.srf to classify Managed vs Federated (§1.1).
 4. If deep mode authorized, run GetCredentialType user-enum capped at 20 attempts (§1.1). Medium detectability.
@@ -185,7 +185,16 @@ Google-Workspace-hosted-domain customers expose discovery endpoints with charact
 
 ### 1.6 SAML metadata
 
-See §16.6.
+**Probe paths** (try each against every alive subdomain):
+```
+/saml/metadata
+/FederationMetadata/2007-06/FederationMetadata.xml
+/federationmetadata/2007-06/federationmetadata.xml
+/simplesaml/saml2/idp/metadata.php
+/auth/saml2/metadata
+```
+
+**Parsing guidance:** Reachable SAML metadata XML reveals EntityID, signing certs (cert-reuse pivot), SingleSignOnService URL, NameIDFormat. Mark as MISCONFIG (LOW severity unless metadata leaks internal hostnames or non-public certs, then MEDIUM).
 
 ### 1.7 AWS account-ID extraction
 

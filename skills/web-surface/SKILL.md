@@ -40,11 +40,15 @@ triggers:
 2. Check high-risk ports (§3) against Shodan/naabu results.
 3. Audit security headers (§4) — escalate per sensitive-path rules.
 4. Run always-on HTTP checks (§5) with listed match logic.
-5. Audit email security posture (§6): parse SPF/DMARC/DKIM, map severity, infer SaaS tenants from TXT records.
-6. Fingerprint vendor products (§7) — cross-reference with CISA KEV for severity escalation.
-7. Check documentation/wiki leak paths (§8).
-8. Query API endpoints (§9) for Wayback CDX, Postman workspace search, and Stack Exchange OSINT.
-9. For each finding, assign severity per the inline tables and emit per `osint-methodology` §3 schema.
+5. Probe JS guess-paths (§6) and extract endpoints via regex tiers (§7).
+6. Check for internal-host leakage (§8) in JS bodies, sourcesContent, APK strings.
+7. Audit email security posture (§9): parse SPF/DMARC/DKIM, map severity, infer SaaS tenants from TXT records.
+8. Fingerprint vendor products (§10) — cross-reference with CISA KEV for severity escalation.
+9. Assess subdomain takeover risk (§11) using provider fingerprints.
+10. Enumerate cloud buckets (§12) using permutation arsenal.
+11. Check documentation/wiki leak paths (§13).
+12. Query API endpoints (§14) for Wayback CDX, Postman workspace search, and Stack Exchange OSINT.
+13. For each finding, assign severity per the inline tables and emit per `osint-methodology` §3 schema.
 
 **Output:** Per-finding results using `osint-methodology` §3 schema.
 
@@ -158,7 +162,75 @@ Also parse `/robots.txt` `Disallow:` paths as next-tier wordlist.
 
 ---
 
-## 6. Email Security Analysis (SPF/DMARC/DKIM/BIMI/MTA-STS)
+## 6. JS Guess-Paths for Endpoint Discovery
+
+Probe on every alive webapp (in addition to scraped `<script src=...>`):
+
+```
+/main.js
+/app.js
+/bundle.js
+/runtime.js
+/index.js
+/vendor.js
+/_next/static/_buildManifest.js
+/_next/static/_ssgManifest.js
+/static/js/main.js
+/static/js/bundle.js
+/assets/index.js
+```
+
+For every found JS, also try `<jsfile>.map` for sourcemap leaks (HIGH `INFO_DISCLOSURE`).
+
+---
+
+## 7. Endpoint Extraction Regex Tiers
+
+Three tiers, run in order on every JS body + every sourcesContent[] blob:
+
+**Tier 1 — generic quoted paths:**
+```regex
+['"`](/[A-Za-z0-9_\-./{}\[\]?=&%:]+)['"`]
+```
+
+**Tier 2 — API-ish paths:**
+```regex
+['"`](/(?:api|graphql|gql|v\d+|swagger|openapi|rest|services|internal|admin|auth|oauth|user|users|account|accounts|search|export|upload|file|files|download|webhook|hooks|callback|admin)/[A-Za-z0-9_\-./{}\[\]?=&%:]+)['"`]
+```
+
+**Tier 3 — fully-qualified URLs:**
+```regex
+\bhttps?://[A-Za-z0-9.\-]+\.[A-Za-z]{2,}(?::\d+)?[/A-Za-z0-9_\-./{}\[\]?=&%:#]*
+```
+
+Dedup on `(method, normalized-path-template)` where the template replaces `/123/` with `/{id}/`.
+
+---
+
+## 8. Internal-Host Leakage Regexes
+
+Run on every JS body + sourcesContent + APK strings + manifest:
+
+**RFC1918:**
+```regex
+\b(?:10\.(?:\d{1,3}\.){2}\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.(?:\d{1,3})\.(?:\d{1,3})|192\.168\.(?:\d{1,3})\.(?:\d{1,3})|127\.(?:\d{1,3}\.){2}\d{1,3})\b
+```
+
+**Internal DNS suffixes:**
+```regex
+\b[A-Za-z0-9][A-Za-z0-9\-]{0,62}\.(?:internal|corp|lan|intranet|local|prod|staging|dev|qa|test)\b
+```
+
+**Kubernetes service DNS:**
+```regex
+\b[A-Za-z0-9\-]+\.[A-Za-z0-9\-]+\.svc(?:\.cluster\.local)?\b
+```
+
+Each match → MEDIUM `INFO_DISCLOSURE`. Aggregate per host: if many matches share the same internal subdomain, that's a recon seed for any future internal phase.
+
+---
+
+## 9. Email Security Analysis (SPF/DMARC/DKIM/BIMI/MTA-STS)
 
 ```bash
 D="target.example"
@@ -189,7 +261,7 @@ $D = "target.example"
 
 ---
 
-## 7. Vendor Product Fingerprints
+## 10. Vendor Product Fingerprints
 
 | Product | Fingerprint paths | KEV CVEs |
 |---|---|---|
@@ -214,7 +286,108 @@ nuclei -u $T -t http/cves/ -severity high,critical -etags fuzz
 
 ---
 
-## 8. Documentation / Wiki Leak Paths
+## 11. Subdomain-Takeover Provider Fingerprints (27 providers)
+
+CNAME targets + "available for claim" response signatures:
+
+| Provider | CNAME pattern | Takeover signature |
+|---|---|---|
+| GitHub Pages | `*.github.io` | `There isn't a GitHub Pages site here.` |
+| Heroku | `*.herokuapp.com` | `No such app` |
+| AWS S3 | `*.s3*.amazonaws.com` | `NoSuchBucket` |
+| AWS CloudFront | `*.cloudfront.net` | `Bad request` w/ specific X-Amz error |
+| Azure (multiple) | `*.azurewebsites.net`, `*.blob.core.windows.net`, `*.cloudapp.net`, `*.trafficmanager.net` | Various per-product 404 patterns |
+| Shopify | `shops.myshopify.com` | `Sorry, this shop is currently unavailable.` |
+| Squarespace | `*.squarespace.com` | `No Such Account` |
+| Tumblr | `*.tumblr.com` | `Whatever you were looking for doesn't currently exist.` |
+| WordPress | `*.wordpress.com` | `Do you want to register *.wordpress.com?` |
+| Fastly | various | Fastly-specific 404 |
+| Pantheon | `*.pantheonsite.io` | `The gods are wise, but do not know of the site...` |
+| Surge.sh | `*.surge.sh` | `project not found` |
+| Bitbucket Pages | `*.bitbucket.io` | Repository not found |
+| Tilda | `*.tilda.ws` | `Please renew your subscription` |
+| Strikingly | `*.s.strikinglydns.com` | `PAGE NOT FOUND` |
+| Smartling | `*.smartling.com` | Domain is not configured |
+| Ngrok | `*.ngrok.io` | Tunnel not found |
+| Webflow | `*.webflow.io` | Site not found |
+| Zendesk | `*.zendesk.com` | `Help Center Closed` |
+| Cargo | `*.cargocollective.com` | `404 Not Found` (with cargo branding) |
+| Statuspage | `*.statuspage.io` | Not found |
+| Intercom | `*.intercom.help` | Not found |
+| Helpjuice | `*.helpjuice.com` | Not found |
+| Helpscout | `*.helpscoutdocs.com` | Not found |
+| Tictail | `*.tictail.com` | Not found |
+| Brightcove | `*.brightcovegallery.com` | Not found |
+| Smugmug | various | Not found |
+
+For full per-provider detection signatures + edge cases, use SubdomainX or Subzy/Subjack against a freshly-fetched fingerprint database.
+
+---
+
+## 12. Cloud Bucket Permutation Arsenal
+
+**6 prefixes:**
+```
+""           # bare candidate
+backup-
+assets-
+static-
+dev-
+prod-
+```
+
+**15 suffixes:**
+```
+""           # bare candidate
+-backup
+-assets
+-static
+-media
+-data
+-uploads
+-dev
+-prod
+-staging
+-logs
+-private
+-public
+-dump
+-archive
+```
+
+**47 generic stems** (filter unless combined with target-identifying token):
+```
+www, mail, email, app, apps, web, webmail, ftp, cdn, static, assets, media, img, images,
+videos, download, downloads, upload, uploads, data, files, docs, support, help, kb,
+blog, news, dev, test, staging, stg, qa, uat, sandbox, preprod, preview, vpn,
+mx, smtp, imap, pop, dns, ns, ns1, ns2, mx1, mx2
+```
+
+**Provider URL templates:**
+
+S3:
+```
+https://{candidate}.s3.amazonaws.com/
+https://{candidate}.s3-{region}.amazonaws.com/
+https://s3.{region}.amazonaws.com/{candidate}/
+```
+
+GCS:
+```
+https://{candidate}.storage.googleapis.com/
+https://storage.googleapis.com/{candidate}/
+```
+
+Azure Blob:
+```
+https://{candidate}.blob.core.windows.net/
+```
+
+**Probe technique:** HEAD first → 200/301 = exists, 403 = exists private, 404 = skip. On exists, GET root → if XML/JSON listing returns, **CRITICAL** `PUBLIC_CLOUD_BUCKET`.
+
+---
+
+## 13. Documentation / Wiki Leak Paths
 
 | Platform | URL pattern |
 |---|---|
@@ -235,7 +408,7 @@ site:atlassian.net "{target}"
 
 ---
 
-## 9. API Endpoints
+## 14. API Endpoints
 
 | Service | Endpoint | Method |
 |---|---|---|
